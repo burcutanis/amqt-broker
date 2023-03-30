@@ -3,7 +3,6 @@
 # See the file license.txt for copying permission.
 import asyncio
 from struct import pack, unpack
-from amqtt_folder.errors import NoDataException
 
 
 def bytes_to_hex_str(data):
@@ -40,10 +39,12 @@ def int_to_bytes(int_value: int, length: int) -> bytes:
     :param length: (optional) byte length
     :return: byte sequence
     """
+
     if length == 1:
         fmt = "!B"
     elif length == 2:
         fmt = "!H"
+
     return pack(fmt, int_value)
 
 """
@@ -72,7 +73,7 @@ async def read_or_raise(reader, n=-1):
     except (asyncio.IncompleteReadError, ConnectionResetError, BrokenPipeError):
         data = None
     if not data:
-        raise NoDataException("No more data")
+        raise Exception("no more data")
     return data
 
 

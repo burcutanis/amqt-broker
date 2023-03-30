@@ -24,6 +24,7 @@ from amqtt_folder.session import Session
 from amqtt_folder.plugins.manager import PluginManager
 from amqtt_folder.adapters import ReaderAdapter, WriterAdapter
 from amqtt_folder.errors import MQTTException
+from amqtt_folder.certificate_operations import create_certificate, read_certificate
 from .handler import EVENT_MQTT_PACKET_RECEIVED, EVENT_MQTT_PACKET_SENT
 from diffiehellman import DiffieHellman
 
@@ -111,6 +112,18 @@ class BrokerProtocolHandler(ProtocolHandler):
             except Exception as e:
                 self.logger.warning("YYYYYYYYYYY %r", e.args)
             try:
+
+                #bilgesu: modification try to create certificate
+
+                try:
+                    create_certificate(self)
+                    read_certificate(self)
+                except Exception as err:
+                    self.logger.warning("exception occured: %r", err.args)
+                #bilgesu: modification end
+
+
+
                 await self.mqtt_publish(topicname, data = encode_data_with_length(dh1_public), qos=2, retain= False )
                 self.session.session_info.key_establishment_state = 4
 
