@@ -25,19 +25,28 @@ from amqtt_folder.plugins.manager import PluginManager
 from amqtt_folder.adapters import ReaderAdapter, WriterAdapter
 from amqtt_folder.errors import MQTTException
 from .handler import EVENT_MQTT_PACKET_RECEIVED, EVENT_MQTT_PACKET_SENT
+
+
+#new imports
 from diffiehellman import DiffieHellman
-
 from amqtt_folder.clientconnection import pushRowToDatabase, updateRowFromDatabase
-
-"""START:29MART2023 - Burcu"""
 from amqtt_folder.codecs import (
     encode_string,
     bytes_to_hex_str, 
     decode_string, encode_data_with_length
 )
-
-"""STOP:29MART2023 - Burcu"""
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.x509 import load_pem_x509_certificate
 from diffiehellman import DiffieHellman
+import base64
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives import padding as padding2
+from cryptography.hazmat.backends import default_backend
+from django.utils.encoding import force_bytes, force_str
+import secrets
+
 class BrokerProtocolHandler(ProtocolHandler):
     def __init__(
         self, plugins_manager: PluginManager, session: Session = None, loop=None
@@ -97,25 +106,49 @@ class BrokerProtocolHandler(ProtocolHandler):
         }
         self.logger.debug("#######Inside hande_subscribe in broker_handler.py" )
         await self._pending_subscriptions.put(subscription)
-   
     
-    """ Burcu: START 29mart2023 te eklendi """    
-    async def broker_df_publish (self, topicname, data):
-        self.logger.debug("#######102 topic name, %s", topicname )
+    """START 29mart2023 te eklendi """  
+
+
+
+
+    
+    async def broker_df_publish (self, topicname, data, x509, x509_private_key):
+        self.logger.debug("#######108 TOPIC NAME: , %s", topicname )
         if (topicname == self.session.client_id):
             try:
-                dh1 = DiffieHellman(group=14, key_bits=2048)    #bilgesu: key size increased to 2048
+                dh1 = DiffieHellman(group=14, key_bits=256)    #bilgesu: key size increased to 2048
                 dh1_public = dh1.get_public_key()
                 dh1_public_hex = bytes_to_hex_str(dh1_public)
-                self.logger.debug("#######107 broker public key %s", dh1_public)
+                self.logger.debug("#######114 BROKER DH PUBLIC KEY %s", dh1_public)
                 self.session.session_info.dh = dh1
             except Exception as e:
                 self.logger.warning("YYYYYYYYYYY %r", e.args)
             try:
-                await self.mqtt_publish(topicname, data = encode_data_with_length(dh1_public), qos=2, retain= False )
-                self.session.session_info.key_establishment_state = 4
+                client_ID_byte = bytes(self.session.client_id, 'UTF-8')
+                message = dh1_public + b'::::' + client_ID_byte
+                signature = x509_private_key.sign(
+                        message,
+                        padding.PSS(
+                            mgf=padding.MGF1(hashes.SHA256()),
+                            salt_length=padding.PSS.MAX_LENGTH
+                        ),
+                        hashes.SHA256()
+                    )
 
-                #bilgesu: modification start
+            except Exception as e3:
+               self.logger.warning("XXXXXXXXXXXX %r ", e3.args)
+
+            try:
+                
+                pem = x509.public_bytes(encoding=serialization.Encoding.PEM)
+                sent_data = pem + b'::::' + dh1_public + b'::::' + signature
+                await self.mqtt_publish(topicname, data = encode_data_with_length(sent_data), qos=2, retain= False )
+                
+                self.session.session_info.key_establishment_state = 5
+
+                #modification start
+                """
                 is_successs = updateRowFromDatabase(self.session.session_info.client_id, self.session.session_info.key_establishment_state,
                                       self.session.session_info.client_spec_pub_key, self.session.session_info.client_spec_priv_key,
                                       None, self.session.session_info.n1, self.session.session_info.n2, 
@@ -124,29 +157,124 @@ class BrokerProtocolHandler(ProtocolHandler):
                     self.logger.debug("state update successfull")
                 else:
                     self.logger.debug("state update issue")
-                #bilgesu: modification end
+                """
+                #modification end
                 
-                self.logger.debug("#######108 self.session.session_info.key_establishment_state, %s", self.session.session_info.key_establishment_state )
             except Exception as e2:
                 self.logger.warning("XXXXXXXXXXXX %r ", e2.args)
    
-            self.logger.debug("#######session state %s", self.session.session_info.key_establishment_state)
+            #self.logger.debug("#######session state %s", self.session.session_info.key_establishment_state)
 
         elif (topicname == "AuthenticationTopic"):
-            self.logger.debug("#######127 client public key %s", data)
-            dh1 = self.session.session_info.dh
-            dh1_shared = dh1.generate_shared_key(data)
+            if (self.session.session_info.key_establishment_state == 5):
+                self.logger.debug("#######159 CLIENT DH PUBLIC KEY:  %s", data)
+                index = data.index(b'::::')
+                client_x509_pem = data[0:index]
+                client_pub_and_sign = data[index:]
+                client_pub_and_sign = client_pub_and_sign[4:]
+                index2 = client_pub_and_sign.index(b'::::')
+                client_dh_public_key = client_pub_and_sign[0:index2]
+                client_rsa_sign = client_pub_and_sign[index2 + 4: ]
+                dh1 = self.session.session_info.dh
+                dh1_shared = dh1.generate_shared_key(client_dh_public_key)
 
-            #bilgesu:modification start
-            self.session.session_info.session_key = dh1_shared
-            #bilgesu:modification end
+                self.logger.debug("#######170 CLIENT X509 CERTIFICATE:  %s", client_x509_pem)
+                self.logger.debug("#######173 CLIENT DH PUBLIC KEY %s", client_dh_public_key)
+                self.logger.debug("#######175 CLIENT RSA SIGN %s", client_rsa_sign)
+                client_x509_bytes = bytes(client_x509_pem)
+                client_x509 = load_pem_x509_certificate(client_x509_bytes )
+                self.session.session_info.client_x509 = client_x509
+                client_x509_public_key = client_x509.public_key()
+                client_x509_public_key_pem = client_x509_public_key.public_bytes(
+                    encoding=serialization.Encoding.PEM,
+                    format=serialization.PublicFormat.SubjectPublicKeyInfo
+                )
+                self.logger.debug("#######177 CLIENT X509 PUBLIC KEY %s", client_x509_public_key_pem)
+                client_ID_byte = bytes(self.session.client_id, 'UTF-8')
+                message = client_dh_public_key + b'::::' + client_ID_byte
+                message_bytes = bytes(message)
+                client_rsa_sign_bytes = bytes(client_rsa_sign)
+                self.logger.debug("#######179 MESSAGE IN RSA SIGN: %s", message_bytes)
+                self.session.session_info.key_establishment_state = 6
+                try:
+                    
+                    client_x509_public_key.verify(
+                        client_rsa_sign_bytes,
+                        message_bytes,
+                        padding.PSS(
+                            mgf=padding.MGF1(hashes.SHA256()),
+                            salt_length=padding.PSS.MAX_LENGTH
+                        ),
+                        hashes.SHA256()
+                    )  
+                    print("#####VERIFIED")
+                    self.session.session_info.dh_shared_key = dh1_shared
+                    
+                    try:
+                        nonce2 = secrets.token_urlsafe()
+                        self.nonce2 = nonce2
+                        self.logger.debug("####NONCE: %s", nonce2)
+                        value_str = nonce2 + "::::" + self.session.client_id
+                        value = force_bytes(value_str)
+                        sessionkey = force_bytes(base64.urlsafe_b64encode(force_bytes(dh1_shared))[:32])
+                        self.session.session_info.session_key = sessionkey
+                        backend = default_backend()
+                        encryptor = Cipher(algorithms.AES(sessionkey), modes.ECB(), backend).encryptor()
+                        padder = padding2.PKCS7(algorithms.AES(sessionkey).block_size).padder()
+                        padded_data = padder.update(value) + padder.finalize()
+                        encrypted_text = encryptor.update(padded_data) + encryptor.finalize()
+                        self.logger.debug("ENCRYPTED TEXT: %s", encrypted_text)
+                        await self.mqtt_publish(self.session.client_id, data = encode_data_with_length(encrypted_text), qos=2, retain= False )
+                        self.session.session_info.key_establishment_state = 8
+                    except:
+                        self.logger.debug("Exception from second publish from broker")
+                    
+                    
+                except:
+                    print("NOT VERIFIED")
+                    self.session.session_info.disconnect_flag = True
+                    await self.handle_connection_closed()
 
-            self.logger.debug("#######129 shared key %s", dh1_shared)
-            self.logger.debug("#######129 shared key type %s", type(dh1_shared))
-            self.logger.debug("#######129 shared key len %s", len(dh1_shared))
+
+                self.logger.debug("#######209 SHARED KEY %s", dh1_shared)
+                self.logger.debug("#######210 shared key type %s", type(dh1_shared))
+                self.logger.debug("#######211 shared key len %s", len(dh1_shared))
+            elif (self.session.session_info.key_establishment_state == 8):
+                self.logger.debug("#######242  DATA OF STATE 8 :  %s", data)
+                backend = default_backend()
+                decryptor = Cipher(algorithms.AES(self.session.session_info.session_key), modes.ECB(), backend).decryptor()
+                padder = padding2.PKCS7(algorithms.AES(self.session.session_info.session_key).block_size).unpadder()
+                decrypted_data = decryptor.update(data) 
+                unpadded = padder.update(decrypted_data) + padder.finalize()
+                print("unpadded", unpadded)
+                index1 = unpadded.index(b'::::')
+                sent_nonce2 = unpadded[0:index1]
+                nonce3_clientID = unpadded[index1+4:]
+                index2 = nonce3_clientID.index(b'::::')
+                coming_nonce3 = nonce3_clientID[0:index2]
+                current_client_id = nonce3_clientID[index2+4:]
+                self.logger.debug("current_client_id %s", current_client_id)
+                self.logger.debug("self.session.client_id %s", self.session.client_id)
+                self.logger.debug("sent_nonce2 %s", sent_nonce2)
+                self.logger.debug("self.nonce2 %s", self.nonce2)
+                if current_client_id == force_bytes(self.session.client_id) and sent_nonce2 == force_bytes(self.nonce2):
+                    self.logger.debug("CLIENT IS AUTHENTICATED")
+                    self.session.session_info.key_establishment_state = 9
+                    value_str = force_str(coming_nonce3) + "::::" + self.session.client_id
+                    value = force_bytes(value_str)
+                    backend = default_backend()
+                    encryptor = Cipher(algorithms.AES(self.session.session_info.session_key), modes.ECB(), backend).encryptor()
+                    padder = padding2.PKCS7(algorithms.AES(self.session.session_info.session_key).block_size).padder()
+                    padded_data = padder.update(value) + padder.finalize()
+                    encrypted_text = encryptor.update(padded_data) + encryptor.finalize()
+                    self.logger.debug("ENCRYPTED TEXT: %s", encrypted_text)
+                    await self.mqtt_publish(self.session.client_id, data = encode_data_with_length(encrypted_text), qos=2, retain= False )
+                else: 
+                    self.logger.debug("CLIENT CANNOT AUTHENTICATED")
+
 
    
-    """ Burcu: START 29mart2023 te eklendi """    
+    """ START 29mart2023 te eklendi """    
 
     async def handle_unsubscribe(self, unsubscribe: UnsubscribePacket):
         unsubscription = {

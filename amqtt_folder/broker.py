@@ -32,12 +32,14 @@ from .plugins.manager import PluginManager, BaseContext
 from amqtt_folder.clientconnection import ClientConnection
 from amqtt_folder.clientconnection import updateRowFromDatabase, deleteRowFromDatabase
 from diffiehellman import DiffieHellman
+from cryptography.hazmat.primitives import serialization
+from cryptography.x509 import load_pem_x509_certificate
+from os.path import exists, join
 
-"""START:29MART2023 - Burcu"""
 from amqtt_folder.codecs import (
     encode_string,
 )
-"""STOP:29MART2023 - Burcu"""
+
 
 
 _defaults = {
@@ -54,6 +56,9 @@ EVENT_BROKER_CLIENT_DISCONNECTED = "broker_client_disconnected"
 EVENT_BROKER_CLIENT_SUBSCRIBED = "broker_client_subscribed"
 EVENT_BROKER_CLIENT_UNSUBSCRIBED = "broker_client_unsubscribed"
 EVENT_BROKER_MESSAGE_RECEIVED = "broker_message_received"
+
+
+
 
 
 class Action(Enum):
@@ -200,8 +205,10 @@ class Broker:
         self._retained_messages = dict()
         self._broadcast_queue = asyncio.Queue()
 
+
         self._broadcast_task = None
         self._broadcast_shutdown_waiter = futures.Future()
+
 
         # Init plugins manager
         context = BrokerContext(self)
@@ -211,6 +218,12 @@ class Broker:
         else:
             namespace = "amqtt.broker.plugins"
         self.plugins_manager = PluginManager(namespace, context, self._loop)
+        self.private_key = "None"
+        self.public_key = "None"
+        self.x509 = "None"
+        #self.cert_read_fnc()
+        
+        
 
     def _build_listeners_config(self, broker_config):
         self.listeners_config = dict()
@@ -246,6 +259,64 @@ class Broker:
             trigger="start", source="stopped", dest="starting"
         )
 
+    def cert_read_fnc(self):
+        """Burcu: START 30Mart"""
+        cert_dir = "."
+        CERT_FILE = "samples/cert_create_read_crypto/key.pem"
+        C_F = join(cert_dir, CERT_FILE)
+        private_key = "None"
+        self.logger.debug("#####in function")
+        try: 
+            if exists(C_F):
+                with open(CERT_FILE, "rb") as key_file:
+                    private_key = serialization.load_pem_private_key(
+                    key_file.read(),
+                    password= None,
+                ) 
+                
+            if (private_key != "None"):
+                public_key = private_key.public_key()
+                private_pem = private_key.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.TraditionalOpenSSL,
+                encryption_algorithm=serialization.NoEncryption()
+                )
+                private_pem.splitlines()[0]
+                
+                self.logger.debug("Private key: %s", private_pem )
+                public_pem = public_key.public_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PublicFormat.SubjectPublicKeyInfo
+                )
+                public_pem.splitlines()[0]
+
+                with open("samples/cert_create_read_crypto/certificate.pem", "rb") as key_file:
+                    x509 = load_pem_x509_certificate(
+                        key_file.read()  
+                    )
+                    public_key2 = x509.public_key()
+                    pem2 = public_key2.public_bytes(
+                    encoding=serialization.Encoding.PEM,
+                    format=serialization.PublicFormat.SubjectPublicKeyInfo
+                    )
+                    pem2.splitlines()[0]
+                    print(pem2)
+
+            else: 
+                self.logger.debug("Broker cannot read the cerficate")
+
+            self.private_key = private_key
+            self.public_key = public_key
+            self.x509 = x509
+        except:
+            self.logger.warning("Broker cannot read the cerficate")  
+        
+
+        """Burcu: END 30Mart"""
+
+
+
+        
     async def start(self) -> None: ############################################################################################
         """
         Start the broker to serve with the given configuration
@@ -356,7 +427,10 @@ class Broker:
 
             # Start broadcast loop
             self._broadcast_task = asyncio.ensure_future(self._broadcast_loop())
-
+            self.cert_read_fnc()
+            
+           
+         
             self.logger.debug("Broker started")
         except Exception as e:
             self.logger.error("Broker startup failed: %s" % e)
@@ -425,6 +499,7 @@ class Broker:
             handler, client_session = await BrokerProtocolHandler.init_from_connect(
                 reader, writer, self.plugins_manager
             )
+            
         except AMQTTException as exc:
             self.logger.warning(
                 "[MQTT-3.1.0-1] %s: Can't read first packet an CONNECT: %s"
@@ -511,7 +586,7 @@ class Broker:
         self._sessions[client_session.client_id] = (client_session, handler)
 
         await handler.mqtt_connack_authorize(authenticated)
-
+        
         await self.plugins_manager.fire_event(
             EVENT_BROKER_CLIENT_CONNECTED, client_id=client_session.client_id
         )
@@ -534,6 +609,7 @@ class Broker:
         )
         wait_deliver = asyncio.ensure_future(handler.mqtt_deliver_next_message())
         connected = True
+        #client_session.session_info.key_establishment_state == 2
         while connected:
             try:
                 done, pending = await asyncio.wait(
@@ -641,11 +717,9 @@ class Broker:
                             xtopic = subscription[0] 
                              
                             if (subscription[0] == client_session.client_id) :
-                                
-                                await (handler.broker_df_publish(subscription[0], "none"))
-                                
-                            
-                                xmsg="testxxx topic == clientid"
+                                #client_session.session_info.key_establishment_state == 3
+                                await (handler.broker_df_publish(subscription[0], "none", self.x509, self.private_key))
+                                #client_session.session_info.key_establishment_state == 5
                             else:
                                 xmsg="testxxx topic != clientid"
 
@@ -656,6 +730,7 @@ class Broker:
                                 
                                 
                             #await self._broadcast_message(client_session, xtopic,encode_string(xmsg) ) 
+                            
                             """ Burcu:  STOP 29mart2023 te eklendi STOP """
                             
                     subscribe_waiter = asyncio.Task(
@@ -710,11 +785,16 @@ class Broker:
                             )
                         """START Burcu 30Mart"""
                      
-                        if (client_session.session_info.key_establishment_state == 4 and app_message.topic == "AuthenticationTopic"): 
-                                self.logger.debug(
-                            " app message  %s" , app_message.topic)
-                                await (handler.broker_df_publish(app_message.topic, app_message.data))
+                        if (app_message.topic == "AuthenticationTopic"): 
+                               
+                                #client_session.session_info.key_establishment_state == 6
+                                await (handler.broker_df_publish(app_message.topic, app_message.data, self.x509, self.private_key))
+                                
+                                #await handler.mqtt_publish(client_session.client_id, data = encode_string("hey"), qos=0, retain= False )
+                                #await self._broadcast_message(client_session, client_session.client_id,encode_string("hey") ) 
                         """END Burcu 30Mart"""
+
+
                     wait_deliver = asyncio.Task(handler.mqtt_deliver_next_message())
             except asyncio.CancelledError:
                 self.logger.debug("Client loop cancelled")
