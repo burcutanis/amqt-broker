@@ -109,24 +109,25 @@ class BrokerProtocolHandler(ProtocolHandler):
     
     """START 29mart2023 te eklendi """  
 
-
-
-
-    
     async def broker_df_publish (self, topicname, data, x509, x509_private_key):
         self.logger.debug("#######108 TOPIC NAME: , %s", topicname )
         if (topicname == self.session.client_id):
             try:
                 dh1 = DiffieHellman(group=14, key_bits=2048)    #bilgesu: key size increased to 2048
                 dh1_public = dh1.get_public_key()
-                dh1_public_hex = bytes_to_hex_str(dh1_public)
+                
                 self.logger.debug("#######114 BROKER DH PUBLIC KEY %s", dh1_public)
                 self.session.session_info.dh = dh1
+
             except Exception as e:
                 self.logger.warning("YYYYYYYYYYY %r", e.args)
+
             try:
+                nonce1 = secrets.token_urlsafe()
+                self.session.session_info.n1 = nonce1
+
                 client_ID_byte = bytes(self.session.client_id, 'UTF-8')
-                message = dh1_public + b'::::' + client_ID_byte
+                message = dh1_public + b'::::' + self.session.session_info.n1 + b'::::' + client_ID_byte #nonce added
                 signature = x509_private_key.sign(
                         message,
                         padding.PSS(
@@ -142,7 +143,7 @@ class BrokerProtocolHandler(ProtocolHandler):
             try:
                 
                 pem = x509.public_bytes(encoding=serialization.Encoding.PEM)
-                sent_data = pem + b'::::' + dh1_public + b'::::' + signature
+                sent_data = pem + b'::::' + dh1_public + b'::::' + self.session.session_info.n1 + b'::::' + signature   #nonce added
                 await self.mqtt_publish(topicname, data = encode_data_with_length(sent_data), qos=2, retain= False )
                 
                 self.session.session_info.key_establishment_state = 5
