@@ -15,17 +15,15 @@ class ClientConnection: #session-based class, containig information about the cu
         self.client_spec_pub_key: str = None
         self.session_key: bytes = None
         self.key_establishment_state: int = 1 #start from one as default
-        self.n1: int = 0
-        self.n2: int = 0
-        self.n3: int = 0
+        self.n1: str = None
+        self.n2: str = None
+        self.n3: str = None
         self.dh: DiffieHellman(group=14, key_bits=2048) #bilgesu: key size increased ton 2048
         self.client_dh_public_key = None
         self.client_x509 = None
         self.disconnect_flag = False
         self.dh_shared_key = None
-        self.nonce2 = None
-        self.nonce1 = None
-        self.nonce3 = None
+
 
 
     @property
