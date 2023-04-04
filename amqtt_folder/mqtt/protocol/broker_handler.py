@@ -268,7 +268,7 @@ class BrokerProtocolHandler(ProtocolHandler):
                 self.logger.debug("self.session.client_id %s", self.session.client_id)
                 self.logger.debug("sent_nonce2 %s", sent_nonce2)
                 self.logger.debug("self.nonce2 %s", self.n2)
-                if current_client_id == force_bytes(self.session.client_id) and sent_nonce2 == force_bytes(self.nonce2):
+                if current_client_id == force_bytes(self.session.client_id) and sent_nonce2 == force_bytes(self.n2):
                     self.logger.debug("CLIENT IS AUTHENTICATED")
                     self.session.session_info.key_establishment_state = 9
                     value_str = force_str(coming_nonce3) + "::::" + self.session.client_id
