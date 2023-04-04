@@ -109,6 +109,31 @@ class BrokerProtocolHandler(ProtocolHandler):
     
     """START 29mart2023 te eklendi """  
 
+    async def send_publish_step_8(self):
+        try:
+            nonce2 = secrets.token_urlsafe()
+            self.n2 = nonce2
+            self.logger.debug("####NONCE: %s", nonce2)
+            value_str = nonce2 + "::::" + self.session.client_id
+            value = force_bytes(value_str)
+            dh1_shared = self.session.session_info.dh_shared_key
+            sessionkey = force_bytes(base64.urlsafe_b64encode(force_bytes(dh1_shared))[:32])
+            self.session.session_info.session_key = sessionkey
+            backend = default_backend()
+            encryptor = Cipher(algorithms.AES(sessionkey), modes.ECB(), backend).encryptor()
+            padder = padding2.PKCS7(algorithms.AES(sessionkey).block_size).padder()
+            padded_data = padder.update(value) + padder.finalize()
+            encrypted_text = encryptor.update(padded_data) + encryptor.finalize()
+
+            self.logger.debug("ENCRYPTED TEXT: %s", encrypted_text)
+
+            await self.mqtt_publish(self.session.client_id, data = encode_data_with_length(encrypted_text), qos=2, retain= False )
+
+            self.session.session_info.key_establishment_state = 8
+        except:
+            self.logger.debug("Exception from second publish from broker")
+                            
+
     async def broker_df_publish (self, topicname, data, x509, x509_private_key):
         self.logger.debug("#######108 TOPIC NAME: , %s", topicname )
         if (topicname == self.session.client_id):
@@ -169,34 +194,50 @@ class BrokerProtocolHandler(ProtocolHandler):
         elif (topicname == "AuthenticationTopic"):
             if (self.session.session_info.key_establishment_state == 5):
                 self.logger.debug("#######159 CLIENT DH PUBLIC KEY:  %s", data)
+
                 index = data.index(b'::::')
                 client_x509_pem = data[0:index]
-                client_pub_and_sign = data[index:]
-                client_pub_and_sign = client_pub_and_sign[4:]
-                index2 = client_pub_and_sign.index(b'::::')
-                client_dh_public_key = client_pub_and_sign[0:index2]
-                client_rsa_sign = client_pub_and_sign[index2 + 4: ]
+
+                client_pub_nonce_and_sign = data[index+4:]
+
+                index2 = client_pub_nonce_and_sign.index(b'::::')
+                client_dh_public_key = client_pub_nonce_and_sign[0:index2]
+                nonce_rsa_sign = client_pub_nonce_and_sign[index2+4:]
+
+                index3 = nonce_rsa_sign.index(b':::::')
+                nonce = nonce_rsa_sign[0:index3]
+
+                client_rsa_sign = nonce_rsa_sign[index3+4:]
+
                 dh1 = self.session.session_info.dh
                 dh1_shared = dh1.generate_shared_key(client_dh_public_key)
 
                 self.logger.debug("#######170 CLIENT X509 CERTIFICATE:  %s", client_x509_pem)
                 self.logger.debug("#######173 CLIENT DH PUBLIC KEY %s", client_dh_public_key)
                 self.logger.debug("#######175 CLIENT RSA SIGN %s", client_rsa_sign)
+                self.logger.debug("#######175 CLIENT NONCE %s", nonce)
+
                 client_x509_bytes = bytes(client_x509_pem)
                 client_x509 = load_pem_x509_certificate(client_x509_bytes )
                 self.session.session_info.client_x509 = client_x509
                 client_x509_public_key = client_x509.public_key()
+
                 client_x509_public_key_pem = client_x509_public_key.public_bytes(
                     encoding=serialization.Encoding.PEM,
                     format=serialization.PublicFormat.SubjectPublicKeyInfo
                 )
+
                 self.logger.debug("#######177 CLIENT X509 PUBLIC KEY %s", client_x509_public_key_pem)
+
                 client_ID_byte = bytes(self.session.client_id, 'UTF-8')
-                message = client_dh_public_key + b'::::' + client_ID_byte
+                message = client_dh_public_key + b'::::' + nonce + b'::::' + client_ID_byte
                 message_bytes = bytes(message)
                 client_rsa_sign_bytes = bytes(client_rsa_sign)
+
                 self.logger.debug("#######179 MESSAGE IN RSA SIGN: %s", message_bytes)
+
                 self.session.session_info.key_establishment_state = 6
+
                 try:
                     
                     client_x509_public_key.verify(
@@ -208,31 +249,34 @@ class BrokerProtocolHandler(ProtocolHandler):
                         ),
                         hashes.SHA256()
                     )  
-                    print("#####VERIFIED")
-                    self.session.session_info.dh_shared_key = dh1_shared
-                    
-                    try:
-                        nonce2 = secrets.token_urlsafe()
-                        self.n2 = nonce2
-                        self.logger.debug("####NONCE: %s", nonce2)
-                        value_str = nonce2 + "::::" + self.session.client_id
-                        value = force_bytes(value_str)
-                        sessionkey = force_bytes(base64.urlsafe_b64encode(force_bytes(dh1_shared))[:32])
-                        self.session.session_info.session_key = sessionkey
-                        backend = default_backend()
-                        encryptor = Cipher(algorithms.AES(sessionkey), modes.ECB(), backend).encryptor()
-                        padder = padding2.PKCS7(algorithms.AES(sessionkey).block_size).padder()
-                        padded_data = padder.update(value) + padder.finalize()
-                        encrypted_text = encryptor.update(padded_data) + encryptor.finalize()
-                        self.logger.debug("ENCRYPTED TEXT: %s", encrypted_text)
-                        await self.mqtt_publish(self.session.client_id, data = encode_data_with_length(encrypted_text), qos=2, retain= False )
-                        self.session.session_info.key_establishment_state = 8
-                    except:
-                        self.logger.debug("Exception from second publish from broker")
-                    
-                    
+                    self.logger.debug("SIGN VERIFIED, nonce not checked yet")
+
+
+                    if(nonce == self.session.session_info.n1):
+
+                        self.logger.debug("Nonces are matching, sign was verified, will send publish step 8.")
+                            
+                        self.session.session_info.dh_shared_key = dh1_shared
+
+                        await self.send_publish_step_8()
+                    else:
+
+                        #siganture verified but nonces are not matching so key extablishment is rejected at this stage
+                        #sending publish to notify the client bout the disconnect
+                        self.logger.debug("Nonces are not matching, client not authenticated, key establishment will stop.")
+
+                        self.session.session_info.disconnect_flag = True
+
+                        #bilgesu:modification
+                        notAuthMessage = self.session.session_info.client_id + ":notAuthenticated"
+                        await self.mqtt_publish(self.session.client_id, data = encode_string(notAuthMessage), qos=2, retain= False )
+                        #bilgesu:modification end
+
+                        await self.handle_connection_closed()
+
                 except:
-                    print("NOT VERIFIED")
+                    #sign not verified
+                    self.logger.debug("SIGN NOT VERIFIED")
                     self.session.session_info.disconnect_flag = True
 
                     #send some message as not authenticated to stop paho from reconnnecting
@@ -248,7 +292,9 @@ class BrokerProtocolHandler(ProtocolHandler):
                 self.logger.debug("#######209 SHARED KEY %s", dh1_shared)
                 self.logger.debug("#######210 shared key type %s", type(dh1_shared))
                 self.logger.debug("#######211 shared key len %s", len(dh1_shared))
+
             elif (self.session.session_info.key_establishment_state == 8):
+                
                 self.logger.debug("#######242  DATA OF STATE 8 :  %s", data)
                 backend = default_backend()
                 decryptor = Cipher(algorithms.AES(self.session.session_info.session_key), modes.ECB(), backend).decryptor()
@@ -262,7 +308,7 @@ class BrokerProtocolHandler(ProtocolHandler):
                 index2 = nonce3_clientID.index(b'::::')
                 coming_nonce3 = nonce3_clientID[0:index2]
 
-                self.session.session_info.n3 = coming_nonce3
+                self.session.session_info.n3 = coming_nonce3 #nonce set
 
                 current_client_id = nonce3_clientID[index2+4:]
                 self.logger.debug("current_client_id %s", current_client_id)
