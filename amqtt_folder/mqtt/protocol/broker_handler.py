@@ -117,7 +117,7 @@ class BrokerProtocolHandler(ProtocolHandler):
         self.logger.debug("#######108 TOPIC NAME: , %s", topicname )
         if (topicname == self.session.client_id):
             try:
-                dh1 = DiffieHellman(group=14, key_bits=256)    #bilgesu: key size increased to 2048
+                dh1 = DiffieHellman(group=14, key_bits=2048)    #bilgesu: key size increased to 2048
                 dh1_public = dh1.get_public_key()
                 dh1_public_hex = bytes_to_hex_str(dh1_public)
                 self.logger.debug("#######114 BROKER DH PUBLIC KEY %s", dh1_public)
@@ -212,7 +212,7 @@ class BrokerProtocolHandler(ProtocolHandler):
                     
                     try:
                         nonce2 = secrets.token_urlsafe()
-                        self.nonce2 = nonce2
+                        self.n2 = nonce2
                         self.logger.debug("####NONCE: %s", nonce2)
                         value_str = nonce2 + "::::" + self.session.client_id
                         value = force_bytes(value_str)
@@ -233,6 +233,14 @@ class BrokerProtocolHandler(ProtocolHandler):
                 except:
                     print("NOT VERIFIED")
                     self.session.session_info.disconnect_flag = True
+
+                    #send some message as not authenticated to stop paho from reconnnecting
+
+                    #bilgesu:modification
+                    notAuthMessage = self.session.session_info.client_id + ":notAuthenticated"
+                    await self.mqtt_publish(self.session.client_id, data = encode_string(notAuthMessage), qos=2, retain= False )
+                    #bilgesu:modification end
+
                     await self.handle_connection_closed()
 
 
@@ -252,11 +260,14 @@ class BrokerProtocolHandler(ProtocolHandler):
                 nonce3_clientID = unpadded[index1+4:]
                 index2 = nonce3_clientID.index(b'::::')
                 coming_nonce3 = nonce3_clientID[0:index2]
+
+                self.session.session_info.n3 = coming_nonce3
+
                 current_client_id = nonce3_clientID[index2+4:]
                 self.logger.debug("current_client_id %s", current_client_id)
                 self.logger.debug("self.session.client_id %s", self.session.client_id)
                 self.logger.debug("sent_nonce2 %s", sent_nonce2)
-                self.logger.debug("self.nonce2 %s", self.nonce2)
+                self.logger.debug("self.nonce2 %s", self.n2)
                 if current_client_id == force_bytes(self.session.client_id) and sent_nonce2 == force_bytes(self.nonce2):
                     self.logger.debug("CLIENT IS AUTHENTICATED")
                     self.session.session_info.key_establishment_state = 9
@@ -271,6 +282,15 @@ class BrokerProtocolHandler(ProtocolHandler):
                     await self.mqtt_publish(self.session.client_id, data = encode_data_with_length(encrypted_text), qos=2, retain= False )
                 else: 
                     self.logger.debug("CLIENT CANNOT AUTHENTICATED")
+
+                    #bilgesu:modification
+                    notAuthMessage = self.session.session_info.client_id + ":notAuthenticated"
+                    await self.mqtt_publish(self.session.client_id, data = encode_string(notAuthMessage), qos=2, retain= False )
+                    #bilgesu:modification end
+
+                    await self.handle_connection_closed()
+                    #send some message as not authenticated to stop paho from reconnnecting
+
 
 
    

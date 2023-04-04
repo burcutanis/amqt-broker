@@ -45,3 +45,7 @@ key establishment bittikten sonra aöakalı subscriptionu silinmeli gereksiz yer
 
 
 her durumunda silinecek
+
+
+
+pahoda reconnect attığı yere if else ekleyip else düşen publisjhe emsajından not auth oku ve reconnect atma
