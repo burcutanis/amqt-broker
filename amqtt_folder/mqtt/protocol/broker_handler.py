@@ -204,7 +204,7 @@ class BrokerProtocolHandler(ProtocolHandler):
                 client_dh_public_key = client_pub_nonce_and_sign[0:index2]
                 nonce_rsa_sign = client_pub_nonce_and_sign[index2+4:]
 
-                index3 = nonce_rsa_sign.index(b':::::')
+                index3 = nonce_rsa_sign.index(b'::::')
                 nonce = nonce_rsa_sign[0:index3]
 
                 client_rsa_sign = nonce_rsa_sign[index3+4:]
