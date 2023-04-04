@@ -112,7 +112,7 @@ class BrokerProtocolHandler(ProtocolHandler):
     async def send_publish_step_8(self):
         try:
             nonce2 = secrets.token_urlsafe()
-            self.n2 = nonce2
+            self.session.session_info.n2 = bytes(nonce2, 'UTF-8')
             self.logger.debug("####NONCE: %s", nonce2)
             value_str = nonce2 + "::::" + self.session.client_id
             value = force_bytes(value_str)
@@ -149,7 +149,7 @@ class BrokerProtocolHandler(ProtocolHandler):
 
             try:
                 nonce1 = secrets.token_urlsafe()
-                self.session.session_info.n1 = nonce1
+                self.session.session_info.n1 =  bytes(nonce1, 'UTF-8')
 
                 client_ID_byte = bytes(self.session.client_id, 'UTF-8')
                 message = dh1_public + b'::::' + self.session.session_info.n1 + b'::::' + client_ID_byte #nonce added
@@ -314,8 +314,8 @@ class BrokerProtocolHandler(ProtocolHandler):
                 self.logger.debug("current_client_id %s", current_client_id)
                 self.logger.debug("self.session.client_id %s", self.session.client_id)
                 self.logger.debug("sent_nonce2 %s", sent_nonce2)
-                self.logger.debug("self.nonce2 %s", self.n2)
-                if current_client_id == force_bytes(self.session.client_id) and sent_nonce2 == force_bytes(self.n2):
+                self.logger.debug("self.nonce2 %s", self.session.session_info.n2)
+                if current_client_id == force_bytes(self.session.client_id) and sent_nonce2 == force_bytes(self.session.session_info.n2):
                     self.logger.debug("CLIENT IS AUTHENTICATED")
                     self.session.session_info.key_establishment_state = 9
                     value_str = force_str(coming_nonce3) + "::::" + self.session.client_id
