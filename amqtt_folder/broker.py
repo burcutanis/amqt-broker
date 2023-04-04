@@ -260,7 +260,7 @@ class Broker:
         )
 
     def cert_read_fnc(self):
-        """Burcu: START 30Mart"""
+        """START 4 NİSAN"""
         cert_dir = "."
         CERT_FILE = "samples/cert_create_read_crypto/key.pem"
         C_F = join(cert_dir, CERT_FILE)
@@ -312,7 +312,7 @@ class Broker:
             self.logger.warning("Broker cannot read the cerficate")  
         
 
-        """Burcu: END 30Mart"""
+        """START 4 NİSAN"""
 
 
 

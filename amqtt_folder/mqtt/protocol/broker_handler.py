@@ -282,6 +282,7 @@ class BrokerProtocolHandler(ProtocolHandler):
                     await self.mqtt_publish(self.session.client_id, data = encode_data_with_length(encrypted_text), qos=2, retain= False )
                 else: 
                     self.logger.debug("CLIENT CANNOT AUTHENTICATED")
+                    self.session.session_info.disconnect_flag = True
 
                     #bilgesu:modification
                     notAuthMessage = self.session.session_info.client_id + ":notAuthenticated"
