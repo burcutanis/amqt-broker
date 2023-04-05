@@ -267,7 +267,7 @@ class BrokerProtocolHandler(ProtocolHandler):
 
                         self.session.session_info.disconnect_flag = True
 
-                        notAuthMessage = self.session.session_info.client_id + "::::" + ":notAuthenticated"
+                        notAuthMessage = self.session.session_info.client_id + "::::" + "notAuthenticated"
                         value = force_bytes(notAuthMessage)
                         backend = default_backend()
                         encryptor = Cipher(algorithms.AES(self.session.session_info.session_key), modes.ECB(), backend).encryptor()
@@ -286,7 +286,7 @@ class BrokerProtocolHandler(ProtocolHandler):
 
                     #send some message as not authenticated to stop paho from reconnnecting
 
-                    notAuthMessage = self.session.session_info.client_id +  "::::" + ":notAuthenticated"
+                    notAuthMessage = self.session.session_info.client_id +  "::::" + "notAuthenticated"
                     value = force_bytes(notAuthMessage)
                     backend = default_backend()
                     encryptor = Cipher(algorithms.AES(self.session.session_info.session_key), modes.ECB(), backend).encryptor()
@@ -342,7 +342,7 @@ class BrokerProtocolHandler(ProtocolHandler):
                     self.session.session_info.disconnect_flag = True
 
                     
-                    notAuthMessage = self.session.session_info.client_id +  "::::" + ":notAuthenticated"
+                    notAuthMessage = self.session.session_info.client_id +  "::::" + "notAuthenticated"
                     value = force_bytes(notAuthMessage)
                     backend = default_backend()
                     encryptor = Cipher(algorithms.AES(self.session.session_info.session_key), modes.ECB(), backend).encryptor()
