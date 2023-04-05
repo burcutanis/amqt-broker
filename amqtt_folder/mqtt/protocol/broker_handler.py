@@ -267,10 +267,15 @@ class BrokerProtocolHandler(ProtocolHandler):
 
                         self.session.session_info.disconnect_flag = True
 
-                        #bilgesu:modification
-                        notAuthMessage = self.session.session_info.client_id + ":notAuthenticated"
-                        await self.mqtt_publish(self.session.client_id, data = encode_string(notAuthMessage), qos=2, retain= False )
-                        #bilgesu:modification end
+                        notAuthMessage = self.session.session_info.client_id + "::::" + ":notAuthenticated"
+                        value = force_bytes(notAuthMessage)
+                        backend = default_backend()
+                        encryptor = Cipher(algorithms.AES(self.session.session_info.session_key), modes.ECB(), backend).encryptor()
+                        padder = padding2.PKCS7(algorithms.AES(self.session.session_info.session_key).block_size).padder()
+                        padded_data = padder.update(value) + padder.finalize()
+                        encrypted_text = encryptor.update(padded_data) + encryptor.finalize()
+                        await self.mqtt_publish(self.session.client_id, data = encode_data_with_length(encrypted_text), qos=2, retain= False )
+                    
 
                         await self.handle_connection_closed()
 
@@ -281,10 +286,15 @@ class BrokerProtocolHandler(ProtocolHandler):
 
                     #send some message as not authenticated to stop paho from reconnnecting
 
-                    #bilgesu:modification
-                    notAuthMessage = self.session.session_info.client_id + ":notAuthenticated"
-                    await self.mqtt_publish(self.session.client_id, data = encode_string(notAuthMessage), qos=2, retain= False )
-                    #bilgesu:modification end
+                    notAuthMessage = self.session.session_info.client_id +  "::::" + ":notAuthenticated"
+                    value = force_bytes(notAuthMessage)
+                    backend = default_backend()
+                    encryptor = Cipher(algorithms.AES(self.session.session_info.session_key), modes.ECB(), backend).encryptor()
+                    padder = padding2.PKCS7(algorithms.AES(self.session.session_info.session_key).block_size).padder()
+                    padded_data = padder.update(value) + padder.finalize()
+                    encrypted_text = encryptor.update(padded_data) + encryptor.finalize()
+                    await self.mqtt_publish(self.session.client_id, data = encode_data_with_length(encrypted_text), qos=2, retain= False )
+                   
 
                     await self.handle_connection_closed()
 
@@ -310,7 +320,7 @@ class BrokerProtocolHandler(ProtocolHandler):
 
                 self.session.session_info.n3 = coming_nonce3 #nonce set
 
-                current_client_id = nonce3_clientID[index2+4:]
+                current_client_id = nonce3_clientID[index2+2:]
                 self.logger.debug("current_client_id %s", current_client_id)
                 self.logger.debug("self.session.client_id %s", self.session.client_id)
                 self.logger.debug("sent_nonce2 %s", sent_nonce2)
@@ -331,10 +341,16 @@ class BrokerProtocolHandler(ProtocolHandler):
                     self.logger.debug("CLIENT CANNOT AUTHENTICATED")
                     self.session.session_info.disconnect_flag = True
 
-                    #bilgesu:modification
-                    notAuthMessage = self.session.session_info.client_id + ":notAuthenticated"
-                    await self.mqtt_publish(self.session.client_id, data = encode_string(notAuthMessage), qos=2, retain= False )
-                    #bilgesu:modification end
+                    
+                    notAuthMessage = self.session.session_info.client_id +  "::::" + ":notAuthenticated"
+                    value = force_bytes(notAuthMessage)
+                    backend = default_backend()
+                    encryptor = Cipher(algorithms.AES(self.session.session_info.session_key), modes.ECB(), backend).encryptor()
+                    padder = padding2.PKCS7(algorithms.AES(self.session.session_info.session_key).block_size).padder()
+                    padded_data = padder.update(value) + padder.finalize()
+                    encrypted_text = encryptor.update(padded_data) + encryptor.finalize()
+                    await self.mqtt_publish(self.session.client_id, data = encode_data_with_length(encrypted_text), qos=2, retain= False )
+                   
 
                     await self.handle_connection_closed()
                     #send some message as not authenticated to stop paho from reconnnecting
