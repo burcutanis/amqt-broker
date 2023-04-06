@@ -23,6 +23,7 @@ class ClientConnection: #session-based class, containig information about the cu
         self.client_x509 = None
         self.disconnect_flag = False
         self.dh_shared_key = None
+        self.authenticated = False
 
 
 
@@ -93,6 +94,7 @@ def pushRowToDatabase(client_id: str, edf_state: int, pub_key: str, priv_key: st
         return success
 
 
+
 def updateRowFromDatabase(client_id: str, edf_state: int, pub_key: str, priv_key: str, session_key: str, n1: int, n2: int, n3: int) -> bool:
 
 
@@ -132,6 +134,7 @@ def updateRowFromDatabase(client_id: str, edf_state: int, pub_key: str, priv_key
 
     finally:
         return success
+
 
 
 def deleteRowFromDatabase(client_id):
@@ -188,3 +191,166 @@ print(obj.session_key)
 
 #pushRowToDatabase(obj.client_id, obj.key_establishment_state, obj.client_spec_pub_key, obj.client_spec_priv_key, obj.session_key)
 #updateRowFromDatabase(obj.client_id, obj.key_establishment_state, obj.client_spec_pub_key, obj.client_spec_priv_key, "dummySessionKeyNewUpdate")
+
+
+
+
+#MODIFICATION START: 6 NİSAN
+
+def pushRowToChoiceTokenTable(choiceToken: str, topicName: str) -> bool: #create database and create table can be removed and run seperately
+
+    success = False
+
+    mydb = mysql.connector.connect(
+        host="127.0.0.1",
+        user="root",
+        password=""
+    ) 
+    mycursor = mydb.cursor()
+
+    try:
+        mycursor.execute("USE {}".format("brokerside"))
+    except Exception as e:
+        print("\n", e.args)
+        #self.logger.debug("\n", e.args)
+
+
+    sql_query = "INSERT INTO `choiceTokens`(`topicName`, `choiceToken`) VALUES (%s, %s)"
+    val = (topicName, choiceToken)
+
+    #self.logger.debug("\nTrying to push data to table")
+    #print("\nTrying to push data to table")
+    try:
+        mycursor.execute(sql_query, val)
+        mydb.commit()
+        success = True
+
+    except mysql.connector.Error as err:
+
+        #if-else unique to some errors can be added
+
+        print("\nFailed pushing data: {}".format(err))
+        #self.logger.debug("\nFailed pushing data: {}".format(err))
+
+
+    finally:
+        return success
+
+
+def updateRowFromChoiceTokens(choiceToken: str, topicName: str) -> bool:
+
+
+
+    success = False
+
+    mydb = mysql.connector.connect(
+        host="127.0.0.1",
+        user="root",
+        password=""
+    ) 
+    mycursor = mydb.cursor()
+
+    try:
+        mycursor.execute("USE {}".format("brokerside"))
+    except Exception as e:
+        
+        print("\n", e.args)
+        #self.logger.debug("\n", e.args)
+
+    sql_query = "UPDATE `choiceTokens` SET `choiceToken` = %s, `topicName` = %s"
+    values = (choiceToken, topicName)
+
+    #self.logger.debug("\nTrying to push data to table")
+    #print("\nTrying to update data to table")
+    try:
+        mycursor.execute(sql_query, values)
+        mydb.commit()
+        success = True
+
+    except mysql.connector.Error as err:
+
+        #if-else unique to some errors can be added
+
+        print("\nFailed updating data: {}".format(err))
+        #self.logger.debug("\nFailed pushing data: {}".format(err))
+
+    finally:
+        return success
+
+
+def deleteRowFromChoiceTokens(topicName):
+    success = False
+
+    mydb = mysql.connector.connect(
+        host="127.0.0.1",
+        user="root",
+        password=""
+    ) 
+    mycursor = mydb.cursor()
+
+    try:
+        mycursor.execute("USE {}".format("brokerside"))
+    except Exception as e:
+        
+        print("\n", e.args)
+        #self.logger.debug("\n", e.args)
+
+
+    sql_query = "DELETE FROM `choiceTokens` WHERE `topicName` = %s;"
+    values = (topicName,)
+
+    try:
+        mycursor.execute(sql_query, values)
+        mydb.commit()
+        success = True
+
+    except mysql.connector.Error as err:
+
+        #if-else unique to some errors can be added
+
+        print("\nFailed deletion: {}".format(err))
+
+    finally:
+        return success
+    
+
+
+def getStatementFromChoiceTokens(topicName):
+    records = None
+
+    mydb = mysql.connector.connect(
+        host="127.0.0.1",
+        user="root",
+        password=""
+    ) 
+    mycursor = mydb.cursor()
+
+    try:
+        mycursor.execute("USE {}".format("brokerside"))
+    except Exception as e:
+        print("\n", e.args)
+        #self.logger.debug("\n", e.args)
+
+
+
+    statement = "SELECT topicName, choiceToken FROM choiceTokens WHERE topicName = %s"
+    values = (topicName,)
+   
+
+    try:
+        mycursor.execute(statement, values)
+        success = True
+        records = mycursor.fetchall()
+
+    except mysql.connector.Error as err:
+
+        #if-else unique to some errors can be added
+
+        print("\nFailed: {}".format(err))
+
+    finally:
+        return records
+    
+
+
+#MODIFICATION END: 6 NİSAN

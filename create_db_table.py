@@ -39,7 +39,8 @@ def createDatabaseAndDatabaseTables():
         "  `nonce_three` int NULL,"
         "   PRIMARY KEY (`client_id`)"
     ") ENGINE=InnoDB")
-                    
+
+  
             
     #self.logger.debug("\nTrying to create table {}: ".format(clientsessions), end='')
     print("\nTrying to create table {}: ".format(clientsessions), end='')
@@ -53,6 +54,31 @@ def createDatabaseAndDatabaseTables():
         else:
             print("\nCreate table error ", err)
             #self.logger.debug("\nCreate table error ", err)
+
+    #START Modification: 6 NISAN
+    choiceToken = (
+        "CREATE TABLE `choiceTokens` ("
+        "  `topicName` varchar(32) NOT NULL,"
+        "  `choiceToken` varchar(32) NOT NULL,"
+        "   PRIMARY KEY (`topicName`)"
+    ") ENGINE=InnoDB")
+
+                    
+
+    print("\nTrying to create table {}: ".format(choiceToken), end='')
+    try:
+        mycursor.execute(choiceToken)
+
+    except mysql.connector.Error as err:
+        if err.errno == errorcode.ER_TABLE_EXISTS_ERROR:
+            print("\nTable already exists.")
+            #self.logger.debug("\nTable already exists.")
+        else:
+            print("\nCreate table error ", err)
+            #self.logger.debug("\nCreate table error ", err)
+
+     #END Modification: 6 NISAN
+
 
 
 
