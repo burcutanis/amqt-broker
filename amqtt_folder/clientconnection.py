@@ -195,7 +195,7 @@ print(obj.session_key)
 
 
 
-#MODIFICATION START: 6 NİSAN
+#MODIFICATION START: 6 NISAN
 
 def pushRowToChoiceTokenTable(choiceToken: str, topicName: str) -> bool: #create database and create table can be removed and run seperately
 

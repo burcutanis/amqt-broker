@@ -112,6 +112,7 @@ class BrokerProtocolHandler(ProtocolHandler):
     """START: 4 Nisan'da eklendi"""
 
     async def sendChoiceToken(self, topicnamehex, payload):
+        #Decrypt the topic name and learn the topic name
         topicnamebyte = unhexlify(topicnamehex)
         backend = default_backend()
         decryptor = Cipher(algorithms.AES(self.session.session_info.session_key), modes.ECB(), backend).decryptor()
@@ -191,13 +192,7 @@ class BrokerProtocolHandler(ProtocolHandler):
             else:
                 print("MAC of the payload is different")
         else: 
-            print("MAC of the topic name is different")
-
-
-
-            
-                
-            
+            print("MAC of the topic name is different")   
 
  
     """END: 4 Nisan'da eklendi"""
