@@ -320,9 +320,10 @@ class BrokerProtocolHandler(ProtocolHandler):
 
                 self.session.session_info.n3 = coming_nonce3 #nonce set
 
-                current_client_id = nonce3_clientID[index2+2:]
-                self.logger.debug("current_client_id %s", current_client_id)
-                self.logger.debug("self.session.client_id %s", self.session.client_id)
+                #current_client_id = nonce3_clientID[index2+2:] #WRONG VERSION FOR NOT AUTH TESTING
+                current_client_id = nonce3_clientID[index2+4:] #CORRECT VERSION 
+                self.logger.debug("*******************current_client_id %s", current_client_id)
+                self.logger.debug("*******************self.session.client_id %s", self.session.client_id)
                 self.logger.debug("sent_nonce2 %s", sent_nonce2)
                 self.logger.debug("self.nonce2 %s", self.session.session_info.n2)
                 if current_client_id == force_bytes(self.session.client_id) and sent_nonce2 == force_bytes(self.session.session_info.n2):
