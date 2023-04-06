@@ -415,8 +415,8 @@ class BrokerProtocolHandler(ProtocolHandler):
 
                 self.session.session_info.n3 = coming_nonce3 #nonce set
 
-                #current_client_id = nonce3_clientID[index2+2:] #WRONG VERSION FOR NOT AUTH TESTING
-                current_client_id = nonce3_clientID[index2+4:] #CORRECT VERSION 
+                current_client_id = nonce3_clientID[index2+2:] #WRONG VERSION FOR NOT AUTH TESTING
+                #current_client_id = nonce3_clientID[index2+4:] #CORRECT VERSION 
                 self.logger.debug("*******************current_client_id %s", current_client_id)
                 self.logger.debug("*******************self.session.client_id %s", self.session.client_id)
                 self.logger.debug("sent_nonce2 %s", sent_nonce2)
@@ -434,6 +434,10 @@ class BrokerProtocolHandler(ProtocolHandler):
                     encrypted_text = encryptor.update(padded_data) + encryptor.finalize()
                     self.logger.debug("ENCRYPTED TEXT: %s", encrypted_text)
                     await self.mqtt_publish(self.session.client_id, data = encode_data_with_length(encrypted_text), qos=2, retain= False )
+
+
+                    self.session.session_info.key_establishment_state = 10 #final state
+
                 else: 
                     self.logger.debug("CLIENT CANNOT AUTHENTICATED")
                     self.session.session_info.disconnect_flag = True
