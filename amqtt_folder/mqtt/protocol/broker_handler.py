@@ -29,14 +29,14 @@ from .handler import EVENT_MQTT_PACKET_RECEIVED, EVENT_MQTT_PACKET_SENT
 
 #new imports
 from diffiehellman import DiffieHellman
-from amqtt_folder.clientconnection import pushRowToDatabase, updateRowFromDatabase
+from amqtt_folder.clientconnection import pushRowToDatabase, updateRowFromDatabase, getStatementFromChoiceTokens, pushRowToChoiceTokenTable, updateRowFromChoiceTokens, deleteRowFromChoiceTokens
 from amqtt_folder.codecs import (
     encode_string,
     bytes_to_hex_str, 
     decode_string, encode_data_with_length
 )
 from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives import hashes, hmac
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.x509 import load_pem_x509_certificate
 from diffiehellman import DiffieHellman
@@ -46,6 +46,8 @@ from cryptography.hazmat.primitives import padding as padding2
 from cryptography.hazmat.backends import default_backend
 from django.utils.encoding import force_bytes, force_str
 import secrets
+import binascii
+from binascii import unhexlify
 
 class BrokerProtocolHandler(ProtocolHandler):
     def __init__(
@@ -107,8 +109,101 @@ class BrokerProtocolHandler(ProtocolHandler):
         self.logger.debug("#######Inside hande_subscribe in broker_handler.py" )
         await self._pending_subscriptions.put(subscription)
     
-    """START 29mart2023 te eklendi """  
+    """START: 4 Nisan'da eklendi"""
 
+    async def sendChoiceToken(self, topicnamehex, payload):
+        topicnamebyte = unhexlify(topicnamehex)
+        backend = default_backend()
+        decryptor = Cipher(algorithms.AES(self.session.session_info.session_key), modes.ECB(), backend).decryptor()
+        padder = padding2.PKCS7(algorithms.AES(self.session.session_info.session_key).block_size).unpadder()
+        decrypted_data = decryptor.update(topicnamebyte) 
+        unpadded = padder.update(decrypted_data) + padder.finalize()
+        index1 = unpadded.index(b'::::')
+        topicname = unpadded[0:index1]
+        macCode = unpadded[index1+4:]
+
+        h = hmac.HMAC(self.session.session_info.session_key, hashes.SHA256())
+        h.update(topicname)
+        signature = h.finalize()
+
+        if (signature == macCode):
+            print("MAC of the topic name is same")
+            decryptor = Cipher(algorithms.AES(self.session.session_info.session_key), modes.ECB(), backend).decryptor()
+            padder = padding2.PKCS7(algorithms.AES(self.session.session_info.session_key).block_size).unpadder()
+            decrypted_data = decryptor.update(payload) 
+            unpadded = padder.update(decrypted_data) + padder.finalize()
+            index1 = unpadded.index(b'::::')
+            payload = unpadded[0:index1]
+            macOfPayload = unpadded[index1+4:]
+
+            h = hmac.HMAC(self.session.session_info.session_key, hashes.SHA256())
+            h.update(payload)
+            signature = h.finalize()
+            payload_str = bytes.decode(payload)
+            
+            if (macOfPayload == signature):
+                print("MAC of the payload is same")
+                rows = getStatementFromChoiceTokens(payload_str)
+                print(rows)
+                if (rows == None): 
+                    choiceToken = secrets.token_hex() #256 bitlik bir token oluşturuyor
+                    pushRowToChoiceTokenTable(choiceToken, payload_str)
+                    rows = getStatementFromChoiceTokens(payload_str)
+                
+                tupleobj = rows[0]
+                topic = tupleobj[0]
+                choiceHex = tupleobj[1]
+                print("Topic: ", topic)
+                print("ChoiceHex: ", choiceHex)
+                choiceByte = unhexlify(choiceHex)
+
+                message_str = self.session.session_info.client_id
+                message = bytes(message_str, 'utf-8')
+                h = hmac.HMAC(self.session.session_info.session_key, hashes.SHA256())
+                h.update(message)
+                signature = h.finalize()
+
+                topicName = message + b'::::' + signature
+        
+                backend = default_backend() 
+                encryptor = Cipher(algorithms.AES(self.session.session_info.session_key), modes.ECB(), backend).encryptor()
+                padder = padding2.PKCS7(algorithms.AES(self.session.session_info.session_key).block_size).padder()
+                padded_data = padder.update(topicName) + padder.finalize()
+                topicNameEncryptedByte = encryptor.update(padded_data) + encryptor.finalize()
+                topicNameEncryptedHex = topicNameEncryptedByte.hex()
+
+
+                
+                h = hmac.HMAC(self.session.session_info.session_key, hashes.SHA256())
+                h.update(choiceByte)
+                signature = h.finalize()
+                
+                payload = choiceByte + b'::::' + signature
+                
+                encryptor = Cipher(algorithms.AES(self.session.session_info.session_key), modes.ECB(), backend).encryptor()
+                padder = padding2.PKCS7(algorithms.AES(self.session.session_info.session_key).block_size).padder()
+                padded_data = padder.update(payload) + padder.finalize()
+                payloadByte = encryptor.update(padded_data) + encryptor.finalize()
+                print(payloadByte)
+                
+                await self.mqtt_publish(topicNameEncryptedHex, data = encode_data_with_length(payloadByte), qos=2, retain= False )
+                
+            else:
+                print("MAC of the payload is different")
+        else: 
+            print("MAC of the topic name is different")
+
+
+
+            
+                
+            
+
+ 
+    """END: 4 Nisan'da eklendi"""
+
+        
+    """START 29mart2023 te eklendi """  
     async def send_publish_step_8(self):
         try:
             nonce2 = secrets.token_urlsafe()
@@ -277,7 +372,7 @@ class BrokerProtocolHandler(ProtocolHandler):
                         await self.mqtt_publish(self.session.client_id, data = encode_data_with_length(encrypted_text), qos=2, retain= False )
                     
 
-                        await self.handle_connection_closed()
+                        #await self.handle_connection_closed()
 
                 except:
                     #sign not verified
@@ -296,7 +391,7 @@ class BrokerProtocolHandler(ProtocolHandler):
                     await self.mqtt_publish(self.session.client_id, data = encode_data_with_length(encrypted_text), qos=2, retain= False )
                    
 
-                    await self.handle_connection_closed()
+                    #await self.handle_connection_closed()
 
 
                 self.logger.debug("#######209 SHARED KEY %s", dh1_shared)
@@ -320,13 +415,14 @@ class BrokerProtocolHandler(ProtocolHandler):
 
                 self.session.session_info.n3 = coming_nonce3 #nonce set
 
-                current_client_id = nonce3_clientID[index2+2:]
+                current_client_id = nonce3_clientID[index2+4:]
                 self.logger.debug("current_client_id %s", current_client_id)
                 self.logger.debug("self.session.client_id %s", self.session.client_id)
                 self.logger.debug("sent_nonce2 %s", sent_nonce2)
                 self.logger.debug("self.nonce2 %s", self.session.session_info.n2)
                 if current_client_id == force_bytes(self.session.client_id) and sent_nonce2 == force_bytes(self.session.session_info.n2):
                     self.logger.debug("CLIENT IS AUTHENTICATED")
+                    self.session.session_info.authenticated = True
                     self.session.session_info.key_establishment_state = 9
                     value_str = force_str(coming_nonce3) + "::::" + self.session.client_id
                     value = force_bytes(value_str)
@@ -352,7 +448,7 @@ class BrokerProtocolHandler(ProtocolHandler):
                     await self.mqtt_publish(self.session.client_id, data = encode_data_with_length(encrypted_text), qos=2, retain= False )
                    
 
-                    await self.handle_connection_closed()
+                    #await self.handle_connection_closed()
                     #send some message as not authenticated to stop paho from reconnnecting
 
 
@@ -480,7 +576,7 @@ class BrokerProtocolHandler(ProtocolHandler):
 
         #modification --> client info added, ke state is currently equal to 0, other fields are none right now.
         incoming_session.session_info.client_id = connect.client_id
-         #Burcu-29Mart
+        #Burcu-29Mart
 
         #call push to database from clientconnection.py to create the record of this session with the related key pairs, session states and created session keys
         pushRowToDatabase(incoming_session.session_info.client_id, incoming_session.session_info.key_establishment_state, 

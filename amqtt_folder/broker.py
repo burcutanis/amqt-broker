@@ -792,7 +792,9 @@ class Broker:
                                 
                                 #await handler.mqtt_publish(client_session.client_id, data = encode_string("hey"), qos=0, retain= False )
                                 #await self._broadcast_message(client_session, client_session.client_id,encode_string("hey") ) 
-                        """END Burcu 30Mart"""
+                        
+                        elif (client_session.session_info.authenticated == True):
+                            await (handler.sendChoiceToken(app_message.topic, app_message.data))
 
 
                     wait_deliver = asyncio.Task(handler.mqtt_deliver_next_message())
