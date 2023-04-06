@@ -49,3 +49,24 @@ her durumunda silinecek
 
 
 pahoda reconnect attığı yere if else ekleyip else düşen publisjhe emsajından not auth oku ve reconnect atma
+
+
+
+mac var mı normal
+
+
+broker handler 150lere bir sürü try except lazım
+
+maceler matchlemezse connection drop
+
+
+session keyi olan authenticated bir client yanlış mac ederse client komple atılmalı mı yoksa choşce token kısmı sıfırdan mı başlamalı?
+
+
+light/# şeklinde gelirse bütün subtopiclerin choiceTokenları return edilmeli
+sublar için aynı token bütük sıkıntı yaratır, sibling topiclere erişim sağlar
+
+
+
+actual_data yanlış geliyor olabilir broker tarafına bakmak lazım yanlışne padder hatası veriyor
+
