@@ -127,7 +127,7 @@ class BrokerProtocolHandler(ProtocolHandler):
         signature = h.finalize()
 
         if (signature == macCode):
-            print("MAC of the topic name is same")
+            self.logger.debug("MAC of the topic name is same")
             decryptor = Cipher(algorithms.AES(self.session.session_info.session_key), modes.ECB(), backend).decryptor()
             padder = padding2.PKCS7(algorithms.AES(self.session.session_info.session_key).block_size).unpadder()
             decrypted_data = decryptor.update(payload) 
@@ -142,19 +142,25 @@ class BrokerProtocolHandler(ProtocolHandler):
             payload_str = bytes.decode(payload)
             
             if (macOfPayload == signature):
-                print("MAC of the payload is same")
+                self.logger.debug("MAC of the payload is same")
                 rows = getStatementFromChoiceTokens(payload_str)
-                print(rows)
-                if (rows == None): 
+                self.logger.debug("ROW......... %s", rows)
+                if (rows == None or len(rows) == 0 or rows == []): 
+
+
+                    self.logger.debug("in if statement")
+
                     choiceToken = secrets.token_hex() #256 bitlik bir token oluşturuyor
                     pushRowToChoiceTokenTable(choiceToken, payload_str)
                     rows = getStatementFromChoiceTokens(payload_str)
+                else:
+                    self.logger.debug("got token from database")
                 
                 tupleobj = rows[0]
                 topic = tupleobj[0]
                 choiceHex = tupleobj[1]
-                print("Topic: ", topic)
-                print("ChoiceHex: ", choiceHex)
+                self.logger.debug("Topic: %s", topic)
+                self.logger.debug("ChoiceHex: %s", choiceHex)
                 choiceByte = unhexlify(choiceHex)
 
                 message_str = self.session.session_info.client_id
@@ -184,14 +190,16 @@ class BrokerProtocolHandler(ProtocolHandler):
                 padder = padding2.PKCS7(algorithms.AES(self.session.session_info.session_key).block_size).padder()
                 padded_data = padder.update(payload) + padder.finalize()
                 payloadByte = encryptor.update(padded_data) + encryptor.finalize()
-                print(payloadByte)
+                self.logger.debug(payloadByte)
                 
+                self.logger.debug("alldatabeforepublish:%s", payloadByte)
+
                 await self.mqtt_publish(topicNameEncryptedHex, data = encode_data_with_length(payloadByte), qos=2, retain= False )
                 
             else:
-                print("MAC of the payload is different")
+                self.logger.debug("MAC of the payload is different")
         else: 
-            print("MAC of the topic name is different")
+            self.logger.debug("MAC of the topic name is different")
 
 
 
@@ -406,7 +414,7 @@ class BrokerProtocolHandler(ProtocolHandler):
                 padder = padding2.PKCS7(algorithms.AES(self.session.session_info.session_key).block_size).unpadder()
                 decrypted_data = decryptor.update(data) 
                 unpadded = padder.update(decrypted_data) + padder.finalize()
-                print("unpadded", unpadded)
+                self.logger.debug("unpadded", unpadded)
                 index1 = unpadded.index(b'::::')
                 sent_nonce2 = unpadded[0:index1]
                 nonce3_clientID = unpadded[index1+4:]
@@ -415,8 +423,8 @@ class BrokerProtocolHandler(ProtocolHandler):
 
                 self.session.session_info.n3 = coming_nonce3 #nonce set
 
-                current_client_id = nonce3_clientID[index2+2:] #WRONG VERSION FOR NOT AUTH TESTING
-                #current_client_id = nonce3_clientID[index2+4:] #CORRECT VERSION 
+                #current_client_id = nonce3_clientID[index2+2:] #WRONG VERSION FOR NOT AUTH TESTING
+                current_client_id = nonce3_clientID[index2+4:] #CORRECT VERSION 
                 self.logger.debug("*******************current_client_id %s", current_client_id)
                 self.logger.debug("*******************self.session.client_id %s", self.session.client_id)
                 self.logger.debug("sent_nonce2 %s", sent_nonce2)
