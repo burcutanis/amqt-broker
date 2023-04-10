@@ -70,3 +70,16 @@ sublar için aynı token bütük sıkıntı yaratır, sibling topiclere erişim 
 
 actual_data yanlış geliyor olabilir broker tarafına bakmak lazım yanlışne padder hatası veriyor
 
+
+
+flagker eklenecek
+
+choice token encrypt yok payload
+macin içinde flagler yok
+
+mysqle bit koyma
+
+hex 256bit 
+
+sesionda receive edilen mesajların databasede tutulması
+
