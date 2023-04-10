@@ -128,44 +128,71 @@ class BrokerProtocolHandler(ProtocolHandler):
         signature = h.finalize()
 
         if (signature == macCode):
-            print("MAC of the topic name is same")
+            self.logger.debug("MAC of the topic name is same")
             decryptor = Cipher(algorithms.AES(self.session.session_info.session_key), modes.ECB(), backend).decryptor()
             padder = padding2.PKCS7(algorithms.AES(self.session.session_info.session_key).block_size).unpadder()
             decrypted_data = decryptor.update(payload) 
             unpadded = padder.update(decrypted_data) + padder.finalize()
             index1 = unpadded.index(b'::::')
             payload = unpadded[0:index1]
+            #
+            '''
             macOfPayload = unpadded[index1+4:]
 
+
+            '''
+            #
+            payload_string = bytes.decode(unpadded)
+
+            indexMAC = payload_string.rfind("::::")
+            mac_unchecked = payload_string[indexMAC+4:]
+            payload_topics = payload_string[0:indexMAC]
+
+            #splitting for subscription requests of multiple topics in one message
+            topics_list = payload_topics.split("::::")
+
+
             h = hmac.HMAC(self.session.session_info.session_key, hashes.SHA256())
-            h.update(payload)
+            h.update(payload_topics)
             signature = h.finalize()
             payload_str = bytes.decode(payload)
+
             
-            if (macOfPayload == signature):
-                print("MAC of the payload is same")
-                rows = getStatementFromChoiceTokens(payload_str)
-                print(rows)
-                if (rows == None or len(rows) == 0 or rows == []): 
-                    choiceToken = secrets.token_hex() #256 bitlik bir token oluşturuyor
-                    pushRowToChoiceTokenTable(choiceToken, payload_str)
-                    rows = getStatementFromChoiceTokens(payload_str)
+            if (mac_unchecked == signature):
+                self.logger.debug("MAC of the payload is same")
                 
-                tupleobj = rows[0]
-                topic = tupleobj[0]
-                choiceHex = tupleobj[1]
-                print("Topic: ", topic)
-                print("ChoiceHex: ", choiceHex)
-                choiceByte = unhexlify(choiceHex)
+                payload_send = b''
+
+                #loop for getting a choice token for all asked topics by the client
+                for topicName in topics_list:
+                    rows = getStatementFromChoiceTokens(topicName)
+                    print(rows)
+                    if (rows == None or len(rows) == 0 or rows == []): 
+                        choiceToken = secrets.token_hex() #256 bitlik bir token oluşturuyor
+                        pushRowToChoiceTokenTable(choiceToken, payload_str)
+                        rows = getStatementFromChoiceTokens(payload_str)
+                    else:
+                        self.logger.debug("got token from database")
+
+                    tupleobj = rows[0]
+                    topic = tupleobj[0]
+                    choiceHex = tupleobj[1]
+                    self.logger.debug("Topic: %s", topic)
+                    self.logger.debug("ChoiceHex: %s", choiceHex)
+                    choiceByte = unhexlify(choiceHex)
+
+                    #append topics and choideToken bytes for payload
+                    payload_send += bytes(topicName, 'utf-8') + b'::::' + choiceByte + b'::::'
 
                 message_str = self.session.session_info.client_id
                 message = bytes(message_str, 'utf-8')
+
                 h = hmac.HMAC(self.session.session_info.session_key, hashes.SHA256())
                 h.update(message)
                 signature = h.finalize()
 
                 topicName = message + b'::::' + signature
-        
+
                 backend = default_backend() 
                 encryptor = Cipher(algorithms.AES(self.session.session_info.session_key), modes.ECB(), backend).encryptor()
                 padder = padding2.PKCS7(algorithms.AES(self.session.session_info.session_key).block_size).padder()
@@ -173,26 +200,34 @@ class BrokerProtocolHandler(ProtocolHandler):
                 topicNameEncryptedByte = encryptor.update(padded_data) + encryptor.finalize()
                 topicNameEncryptedHex = topicNameEncryptedByte.hex()
 
+                payload_send_without_last_divider = payload_send[0 : len(payload_send)-4]
 
-                
                 h = hmac.HMAC(self.session.session_info.session_key, hashes.SHA256())
-                h.update(choiceByte)
+                h.update(payload_send_without_last_divider)
                 signature = h.finalize()
-                
-                payload_send = payload + b'::::' +choiceByte + b'::::' + signature
-                
+
+                payload_mac_merged = payload_send + signature 
+
                 encryptor = Cipher(algorithms.AES(self.session.session_info.session_key), modes.ECB(), backend).encryptor()
                 padder = padding2.PKCS7(algorithms.AES(self.session.session_info.session_key).block_size).padder()
-                padded_data = padder.update(payload_send) + padder.finalize()
+                padded_data = padder.update(payload_mac_merged) + padder.finalize()
                 payloadByte = encryptor.update(padded_data) + encryptor.finalize()
-                print(payloadByte)
+                self.logger.debug(payloadByte)
                 
+                self.logger.debug("alldatabeforepublish:%s", payloadByte)
+
                 await self.mqtt_publish(topicNameEncryptedHex, data = encode_data_with_length(payloadByte), qos=2, retain= False )
                 
             else:
-                print("MAC of the payload is different")
+                self.logger.debug("MAC of the payload is different")
         else: 
-            print("MAC of the topic name is different")   
+            self.logger.debug("MAC of the topic name is different")
+
+
+
+            
+                
+            
 
  
     """END: 4 Nisan'da eklendi"""
@@ -402,7 +437,7 @@ class BrokerProtocolHandler(ProtocolHandler):
                 padder = padding2.PKCS7(algorithms.AES(self.session.session_info.session_key).block_size).unpadder()
                 decrypted_data = decryptor.update(data) 
                 unpadded = padder.update(decrypted_data) + padder.finalize()
-                print("unpadded", unpadded)
+                self.logger.debug("unpadded", unpadded)
                 index1 = unpadded.index(b'::::')
                 sent_nonce2 = unpadded[0:index1]
                 nonce3_clientID = unpadded[index1+4:]
