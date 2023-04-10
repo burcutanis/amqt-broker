@@ -89,3 +89,8 @@ client tarafında unsubscribea encrypt eklenmeli
 
 look for the structure of unsubscribe messages and topics field of the payload
 
+
+
+
+LOG DÜZENLEMESİ GEREKİYOR
+
