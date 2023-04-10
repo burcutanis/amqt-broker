@@ -691,6 +691,7 @@ class Broker:
                     await handler.mqtt_acknowledge_unsubscription(
                         unsubscription["packet_id"]
                     )
+                    
                     unsubscribe_waiter = asyncio.Task(
                         handler.get_next_pending_unsubscription()
                     )
