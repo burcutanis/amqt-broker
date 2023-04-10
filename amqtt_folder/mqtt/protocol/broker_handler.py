@@ -146,7 +146,7 @@ class BrokerProtocolHandler(ProtocolHandler):
                 print("MAC of the payload is same")
                 rows = getStatementFromChoiceTokens(payload_str)
                 print(rows)
-                if (rows == None): 
+                if (rows == None or len(rows) == 0 or rows == []): 
                     choiceToken = secrets.token_hex() #256 bitlik bir token oluşturuyor
                     pushRowToChoiceTokenTable(choiceToken, payload_str)
                     rows = getStatementFromChoiceTokens(payload_str)
@@ -179,11 +179,11 @@ class BrokerProtocolHandler(ProtocolHandler):
                 h.update(choiceByte)
                 signature = h.finalize()
                 
-                payload = choiceByte + b'::::' + signature
+                payload_send = payload + b'::::' +choiceByte + b'::::' + signature
                 
                 encryptor = Cipher(algorithms.AES(self.session.session_info.session_key), modes.ECB(), backend).encryptor()
                 padder = padding2.PKCS7(algorithms.AES(self.session.session_info.session_key).block_size).padder()
-                padded_data = padder.update(payload) + padder.finalize()
+                padded_data = padder.update(payload_send) + padder.finalize()
                 payloadByte = encryptor.update(padded_data) + encryptor.finalize()
                 print(payloadByte)
                 
@@ -209,6 +209,7 @@ class BrokerProtocolHandler(ProtocolHandler):
             dh1_shared = self.session.session_info.dh_shared_key
             sessionkey = force_bytes(base64.urlsafe_b64encode(force_bytes(dh1_shared))[:32])
             self.session.session_info.session_key = sessionkey
+
             backend = default_backend()
             encryptor = Cipher(algorithms.AES(sessionkey), modes.ECB(), backend).encryptor()
             padder = padding2.PKCS7(algorithms.AES(sessionkey).block_size).padder()
@@ -367,7 +368,7 @@ class BrokerProtocolHandler(ProtocolHandler):
                         await self.mqtt_publish(self.session.client_id, data = encode_data_with_length(encrypted_text), qos=2, retain= False )
                     
 
-                        #await self.handle_connection_closed()
+                        await self.handle_connection_closed()
 
                 except:
                     #sign not verified
@@ -386,7 +387,7 @@ class BrokerProtocolHandler(ProtocolHandler):
                     await self.mqtt_publish(self.session.client_id, data = encode_data_with_length(encrypted_text), qos=2, retain= False )
                    
 
-                    #await self.handle_connection_closed()
+                    await self.handle_connection_closed()
 
 
                 self.logger.debug("#######209 SHARED KEY %s", dh1_shared)
@@ -410,8 +411,8 @@ class BrokerProtocolHandler(ProtocolHandler):
 
                 self.session.session_info.n3 = coming_nonce3 #nonce set
 
-                current_client_id = nonce3_clientID[index2+2:] #WRONG VERSION FOR NOT AUTH TESTING
-                #current_client_id = nonce3_clientID[index2+4:] #CORRECT VERSION 
+                #current_client_id = nonce3_clientID[index2+2:] #WRONG VERSION FOR NOT AUTH TESTING
+                current_client_id = nonce3_clientID[index2+4:] #CORRECT VERSION 
                 self.logger.debug("*******************current_client_id %s", current_client_id)
                 self.logger.debug("*******************self.session.client_id %s", self.session.client_id)
                 self.logger.debug("sent_nonce2 %s", sent_nonce2)
@@ -448,7 +449,7 @@ class BrokerProtocolHandler(ProtocolHandler):
                     await self.mqtt_publish(self.session.client_id, data = encode_data_with_length(encrypted_text), qos=2, retain= False )
                    
 
-                    #await self.handle_connection_closed()
+                    await self.handle_connection_closed()
                     #send some message as not authenticated to stop paho from reconnnecting
 
 

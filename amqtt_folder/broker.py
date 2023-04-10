@@ -773,9 +773,11 @@ class Broker:
                             client_id=client_session.client_id,
                             message=app_message,
                         )
-                        await self._broadcast_message(   #clientlar publish etmek istediğinde
-                            client_session, app_message.topic, app_message.data  ##şimdilik burası update edilecek
-                        )
+                        if (app_message.topic != "AuthenticationTopic"):  #modified here - burcu
+                            await self._broadcast_message(   #clientlar publish etmek istediğinde
+                                client_session, app_message.topic, app_message.data  ##şimdilik burası update edilecek
+                            )
+
                         if app_message.publish_packet.retain_flag:
                             self.retain_message(
                                 client_session,
