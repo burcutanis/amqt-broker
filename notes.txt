@@ -73,13 +73,8 @@ actual_data yanlış geliyor olabilir broker tarafına bakmak lazım yanlışne 
 
 
 flagker eklenecek
-
-choice token encrypt yok payload
 macin içinde flagler yok
 
-mysqle bit koyma
-
-hex 256bit 
 
 sesionda receive edilen mesajların databasede tutulması
 
@@ -90,7 +85,23 @@ client tarafında unsubscribea encrypt eklenmeli
 look for the structure of unsubscribe messages and topics field of the payload
 
 
+unsubscribe iki tarafta da yapılmalı
+
+
+client tarafı birden fazla topic adı yollarken ve multiple choiceToken receive
+
+
+
+else caselerinde disconnect olmalı mı
+
+
+
+gui buton disable connect öncesi için
+
 
 
 LOG DÜZENLEMESİ GEREKİYOR
 
+
+
+encapsulation en sonra kalıyor
