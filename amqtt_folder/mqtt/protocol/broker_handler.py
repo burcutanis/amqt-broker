@@ -133,29 +133,28 @@ class BrokerProtocolHandler(ProtocolHandler):
             padder = padding2.PKCS7(algorithms.AES(self.session.session_info.session_key).block_size).unpadder()
             decrypted_data = decryptor.update(payload) 
             unpadded = padder.update(decrypted_data) + padder.finalize()
-            index1 = unpadded.index(b'::::')
-            payload = unpadded[0:index1]
-            #
-            '''
-            macOfPayload = unpadded[index1+4:]
+            self.logger.debug("unpadded: %s", unpadded)
+            
+           
+          
+           
 
-
-            '''
-            #
-            payload_string = bytes.decode(unpadded)
-
-            indexMAC = payload_string.rfind("::::")
-            mac_unchecked = payload_string[indexMAC+4:]
-            payload_topics = payload_string[0:indexMAC]
+            indexMAC = unpadded.rfind(b'::::')
+            mac_unchecked = unpadded[indexMAC+4:]
+            payload_topics = unpadded[0:indexMAC]
+            self.logger.debug("indexMAC: %s", indexMAC)
+            self.logger.debug("payload_topics: %s", payload_topics)
+           
 
             #splitting for subscription requests of multiple topics in one message
-            topics_list = payload_topics.split("::::")
+            topics_list = payload_topics.split(b'::::')
+            self.logger.debug("topics_list: %s", topics_list)
 
 
             h = hmac.HMAC(self.session.session_info.session_key, hashes.SHA256())
             h.update(payload_topics)
             signature = h.finalize()
-            payload_str = bytes.decode(payload)
+            
 
             
             if (mac_unchecked == signature):
@@ -165,12 +164,14 @@ class BrokerProtocolHandler(ProtocolHandler):
 
                 #loop for getting a choice token for all asked topics by the client
                 for topicName in topics_list:
-                    rows = getStatementFromChoiceTokens(topicName)
-                    print(rows)
+                    self.logger.debug("topicName: %s ", topicName)
+                    topicName_str = bytes.decode(topicName)
+                    rows = getStatementFromChoiceTokens(topicName_str)
+                    
                     if (rows == None or len(rows) == 0 or rows == []): 
                         choiceToken = secrets.token_hex() #256 bitlik bir token oluşturuyor
-                        pushRowToChoiceTokenTable(choiceToken, payload_str)
-                        rows = getStatementFromChoiceTokens(payload_str)
+                        pushRowToChoiceTokenTable(choiceToken, topicName_str)
+                        rows = getStatementFromChoiceTokens(topicName_str)
                     else:
                         self.logger.debug("got token from database")
 
@@ -178,11 +179,12 @@ class BrokerProtocolHandler(ProtocolHandler):
                     topic = tupleobj[0]
                     choiceHex = tupleobj[1]
                     self.logger.debug("Topic: %s", topic)
-                    self.logger.debug("ChoiceHex: %s", choiceHex)
+                    self.logger.debug("ChoiceHex  (182) in broker: %s", choiceHex)
                     choiceByte = unhexlify(choiceHex)
+                    self.logger.debug("ChoiceByte  (184) in broker: %s", choiceByte)
 
                     #append topics and choideToken bytes for payload
-                    payload_send += bytes(topicName, 'utf-8') + b'::::' + choiceByte + b'::::'
+                    payload_send += topicName + b'::::' + choiceByte + b'::::'
 
                 message_str = self.session.session_info.client_id
                 message = bytes(message_str, 'utf-8')
