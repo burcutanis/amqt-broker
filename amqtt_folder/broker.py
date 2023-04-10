@@ -835,7 +835,7 @@ class Broker:
                                 if (signature == mac_of_topicName):
                                     self.logger.debug("796# MAC OF TOPIC NAME IS SAME")
                                     self.logger.debug("800# CHOİCE TOKEN TOPIC Mİ: %s", topicName)
-                                    if (topicName == b'choiceToken'):
+                                    if (topicName == b'choiceToken'):#asks for a choice token here 
                                         await (handler.sendChoiceToken(app_message.topic, app_message.data))
 
                                     else:
@@ -1197,8 +1197,9 @@ class Broker:
                         )
                     )
 
+                #modification
                 ####################################################3burası bir client publish ettiğinde çağrılıyor
-                handler = self._get_handler(target_session)
+                handler = self._get_handler(target_session)#target session: subscribe olan clientlar
                 self.logger.debug("1196 handler.session.session_info.client_id %s", handler.session.session_info.client_id)
                 self.logger.debug("1196 topicname type %s", type(broadcast["topic"]))
                 self.logger.debug("1196 topicname %s", broadcast["topic"])
@@ -1256,6 +1257,7 @@ class Broker:
                     self.logger.debug("1252 payload %s", broadcast["data"])
                     self.logger.debug("1253 topic %s", broadcast["topic"])
 
+                #authenticated değil ise client açık bir şekilde gidiyor, normal yapı encryptsiz bir şekilde devam ediyor
                 task = asyncio.ensure_future(
                     handler.mqtt_publish(
                         publish_topic,
