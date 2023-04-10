@@ -47,7 +47,6 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, hmac
 from binascii import unhexlify
 from django.utils.encoding import force_bytes, force_str
-from amqtt_folder.clientconnection import pushRowToDatabase, updateRowFromDatabase, getStatementFromChoiceTokens, pushRowToChoiceTokenTable, updateRowFromChoiceTokens, deleteRowFromChoiceTokens
 
 
 
@@ -850,30 +849,17 @@ class Broker:
                                         unpadded = padder.update(decrypted_data) + padder.finalize()
 
                                         index2 = unpadded.index(b'::::')
-                                        payload_encrypted_with_ct = unpadded[0:index2]
+                                        payload = unpadded[0:index2]
                                         mac_of_payload = unpadded[index2+4:]
-                                        self.logger.debug("816# PAYLOAD BROKER.PY: %s", payload_encrypted_with_ct)
+                                        self.logger.debug("816# PAYLOAD BROKER.PY: %s", payload)
 
                                         h = hmac.HMAC(client_session.session_info.session_key, hashes.SHA256())
-                                        h.update(payload_encrypted_with_ct)
+                                        h.update(payload)
                                         signature2 = h.finalize()
-
-                                        rows = getStatementFromChoiceTokens(topicName)
-                                        tupleobj = rows[0]
-                                        topic = tupleobj[0]
-                                        choiceHex = tupleobj[1]
-                                        choiceByte = unhexlify(choiceHex)
-
-                                        backend = default_backend()
-                                        decryptor = Cipher(algorithms.AES(choiceByte), modes.ECB(), backend).decryptor()
-                                        padder = padding2.PKCS7(algorithms.AES(choiceByte).block_size).unpadder()
-                                        decrypted_data = decryptor.update(payload_encrypted_with_ct) 
-                                        decrypted_payload = padder.update(decrypted_data) + padder.finalize()
-                                       
 
                                         if(mac_of_payload == signature2):
                                             self.logger.debug("823# MAC OF PAYLOAD IS SAME")
-                                            app_message.data = decrypted_payload
+                                            app_message.data = payload
                                             self.logger.debug("825# PAYLOAD BROKER.PY: %s", app_message.data)
                                             self.logger.debug("826# CHOICE TOKEN TOPIC: %s", app_message.topic)
                                             await self._broadcast_message(   #clientlar publish etmek istediğinde
@@ -1252,27 +1238,11 @@ class Broker:
                     self.logger.debug("1196 payload type %s", type(broadcast["data"]))
                     self.logger.debug("1196 payload %s", broadcast["data"])
 
-                    rows = getStatementFromChoiceTokens(topicName)
-                    tupleobj = rows[0]
-                    topic = tupleobj[0]
-                    choiceHex = tupleobj[1]
-                    choiceByte = unhexlify(choiceHex)
-
-                    encryptor = Cipher(algorithms.AES(choiceByte), modes.ECB(), backend).encryptor()
-                    padder = padding2.PKCS7(algorithms.AES(choiceByte).block_size).padder()
-                    padded_data = padder.update(payload) + padder.finalize()
-                    encrypted_message = encryptor.update(padded_data) + encryptor.finalize()
-
-                    encrypted_message_byte = force_bytes(encrypted_message)
                     h = hmac.HMAC(handler.session.session_info.session_key, hashes.SHA256())
-                    h.update(encrypted_message_byte)
+                    h.update(payload)
                     signature = h.finalize()
 
-
-
-
-
-                    payload_and_sign = encrypted_message_byte + b'::::' + signature
+                    payload_and_sign = payload + b'::::' + signature
                     self.logger.debug("1241")
 
 
