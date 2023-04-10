@@ -1203,6 +1203,8 @@ class Broker:
                 self.logger.debug("1196 topicname type %s", type(broadcast["topic"]))
                 self.logger.debug("1196 topicname %s", broadcast["topic"])
                 self.logger.debug("1196 handler.session.session_info.client_id %s", handler.session.session_info.authenticated)
+                publish_topic = broadcast["topic"]
+                publish_message = broadcast["data"]
                 if (handler.session.session_info.authenticated == True):
                     self.logger.debug("1205")
                     topicName = broadcast["topic"]
@@ -1223,7 +1225,7 @@ class Broker:
                     padded_data = padder.update(topicName_and_sign) + padder.finalize()
                     encrypted_topic = encryptor.update(padded_data) + encryptor.finalize()
                     encrypted_topic_hex = encrypted_topic.hex() 
-                    broadcast["topic"] = encrypted_topic_hex
+                    publish_topic = encrypted_topic_hex
                     self.logger.debug("1225")
 
 
@@ -1248,7 +1250,7 @@ class Broker:
                     padder = padding2.PKCS7(algorithms.AES(handler.session.session_info.session_key).block_size).padder()
                     padded_data = padder.update(payload_and_sign) + padder.finalize()
                     encrypted_payload = encryptor.update(padded_data) + encryptor.finalize()
-                    broadcast["data"] = encrypted_payload
+                    publish_message = encode_data_with_length(encrypted_payload)
 
                     self.logger.debug("1250")
                     self.logger.debug("1252 payload %s", broadcast["data"])
@@ -1256,8 +1258,8 @@ class Broker:
 
                 task = asyncio.ensure_future(
                     handler.mqtt_publish(
-                        broadcast["topic"],
-                        encode_data_with_length(broadcast["data"]),
+                        publish_topic,
+                        publish_message,
                         qos,
                         retain=False,
                     ),
