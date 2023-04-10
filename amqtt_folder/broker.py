@@ -38,7 +38,15 @@ from os.path import exists, join
 
 from amqtt_folder.codecs import (
     encode_string,
+    bytes_to_hex_str, 
+    decode_string, encode_data_with_length
 )
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives import padding as padding2
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes, hmac
+from binascii import unhexlify
+from django.utils.encoding import force_bytes, force_str
 
 
 
@@ -693,9 +701,42 @@ class Broker:
                     subscriptions = subscribe_waiter.result()
                     return_codes = []
                     for subscription in subscriptions["topics"]:
-                        result = await self.add_subscription(
+                        #MODIFICATION START 10 NISAN
+                        if (client_session.session_info.authenticated == True):
+                            topicnamebyte = unhexlify(subscription[0])
+                            backend = default_backend()
+                            decryptor = Cipher(algorithms.AES(client_session.session_info.session_key), modes.ECB(), backend).decryptor()
+                            padder = padding2.PKCS7(algorithms.AES(client_session.session_info.session_key).block_size).unpadder()
+                            decrypted_data = decryptor.update(topicnamebyte) 
+                            unpadded = padder.update(decrypted_data) + padder.finalize()
+
+                            index1 = unpadded.index(b'::::')
+                            topicName = unpadded[0:index1]
+                            mac_of_topicName = unpadded[index1+4:]
+                                
+                            h = hmac.HMAC(client_session.session_info.session_key, hashes.SHA256())
+                            h.update(topicName)
+                            signature = h.finalize()
+
+                            if (signature == mac_of_topicName):
+                                topicName_str = bytes.decode(topicName)
+                                my_list = list(subscription)
+                                my_list[0] = topicName_str
+                                subscription = tuple(my_list)
+                                self.logger.debug("#723 SUBSCRIPTION %s", subscription)
+                                result = await self.add_subscription(
+                                    subscription, client_session
+                                    )
+                            else: 
+                                self.logger.debug("722# MAC OF THE SUBSCRIBED TOPIC IS NOT SAME")
+                        else: 
+                             result = await self.add_subscription(
                             subscription, client_session
                         )
+                     #MODIFICATION END 10 NISAN
+
+                        
+                       
                         return_codes.append(result)
                     await handler.mqtt_acknowledge_subscription(
                         subscriptions["packet_id"], return_codes
@@ -773,16 +814,75 @@ class Broker:
                             client_id=client_session.client_id,
                             message=app_message,
                         )
-                        await self._broadcast_message(   #clientlar publish etmek istediğinde
-                            client_session, app_message.topic, app_message.data  ##şimdilik burası update edilecek
-                        )
-                        if app_message.publish_packet.retain_flag:
-                            self.retain_message(
-                                client_session,
-                                app_message.topic,
-                                app_message.data,
-                                app_message.qos,
-                            )
+                        #MODIFICATION START 10 NISAN
+                        if (app_message.topic != "AuthenticationTopic"):  #modified here - burcu
+                            if client_session.session_info.authenticated == True:
+                                topicnamebyte = unhexlify(app_message.topic)
+                                backend = default_backend()
+                                decryptor = Cipher(algorithms.AES(client_session.session_info.session_key), modes.ECB(), backend).decryptor()
+                                padder = padding2.PKCS7(algorithms.AES(client_session.session_info.session_key).block_size).unpadder()
+                                decrypted_data = decryptor.update(topicnamebyte) 
+                                unpadded = padder.update(decrypted_data) + padder.finalize()
+
+                                index1 = unpadded.index(b'::::')
+                                topicName = unpadded[0:index1]
+                                mac_of_topicName = unpadded[index1+4:]
+                                
+                                h = hmac.HMAC(client_session.session_info.session_key, hashes.SHA256())
+                                h.update(topicName)
+                                signature = h.finalize()
+
+                                if (signature == mac_of_topicName):
+                                    self.logger.debug("796# MAC OF TOPIC NAME IS SAME")
+                                    self.logger.debug("800# CHOİCE TOKEN TOPIC Mİ: %s", topicName)
+                                    if (topicName == b'choiceToken'):
+                                        await (handler.sendChoiceToken(app_message.topic, app_message.data))
+
+                                    else:
+                                        topicName_str = bytes.decode(topicName)
+                                        app_message.topic = topicName_str
+
+                                        backend = default_backend()
+                                        decryptor = Cipher(algorithms.AES(client_session.session_info.session_key), modes.ECB(), backend).decryptor()
+                                        padder = padding2.PKCS7(algorithms.AES(client_session.session_info.session_key).block_size).unpadder()
+                                        decrypted_data = decryptor.update(app_message.data) 
+                                        unpadded = padder.update(decrypted_data) + padder.finalize()
+
+                                        index2 = unpadded.index(b'::::')
+                                        payload = unpadded[0:index2]
+                                        mac_of_payload = unpadded[index2+4:]
+                                        self.logger.debug("816# PAYLOAD BROKER.PY: %s", payload)
+
+                                        h = hmac.HMAC(client_session.session_info.session_key, hashes.SHA256())
+                                        h.update(payload)
+                                        signature2 = h.finalize()
+
+                                        if(mac_of_payload == signature2):
+                                            self.logger.debug("823# MAC OF PAYLOAD IS SAME")
+                                            app_message.data = payload
+                                            self.logger.debug("825# PAYLOAD BROKER.PY: %s", app_message.data)
+                                            self.logger.debug("826# CHOICE TOKEN TOPIC: %s", app_message.topic)
+                                            await self._broadcast_message(   #clientlar publish etmek istediğinde
+                                                client_session, app_message.topic, app_message.data  ##şimdilik burası update edilecek
+                                            )
+                                        else: 
+                                            self.logger.debug("796# MAC OF PAYLOAD IS NOT SAME")
+                                else: 
+                                    self.logger.debug("796# MAC OF TOPIC NAME IS NOT SAME")   
+
+                            else:
+                                await self._broadcast_message(   #clientlar publish etmek istediğinde
+                                    client_session, app_message.topic, app_message.data  ##şimdilik burası update edilecek
+                                )
+
+                                if app_message.publish_packet.retain_flag:
+                                    self.retain_message(
+                                        client_session,
+                                        app_message.topic,
+                                        app_message.data,
+                                        app_message.qos,
+                                    )
+                        #MODIFICATION END 10 NISAN
                         """START Burcu 30Mart"""
                      
                         if (app_message.topic == "AuthenticationTopic"): 
@@ -792,10 +892,10 @@ class Broker:
                                 
                                 #await handler.mqtt_publish(client_session.client_id, data = encode_string("hey"), qos=0, retain= False )
                                 #await self._broadcast_message(client_session, client_session.client_id,encode_string("hey") ) 
-                        
+                        """
                         elif (client_session.session_info.authenticated == True):
                             await (handler.sendChoiceToken(app_message.topic, app_message.data))
-
+"""
 
                     wait_deliver = asyncio.Task(handler.mqtt_deliver_next_message())
             except asyncio.CancelledError:
@@ -1099,15 +1199,74 @@ class Broker:
 
                 ####################################################3burası bir client publish ettiğinde çağrılıyor
                 handler = self._get_handler(target_session)
+                self.logger.debug("1196 handler.session.session_info.client_id %s", handler.session.session_info.client_id)
+                self.logger.debug("1196 topicname type %s", type(broadcast["topic"]))
+                self.logger.debug("1196 topicname %s", broadcast["topic"])
+                self.logger.debug("1196 handler.session.session_info.client_id %s", handler.session.session_info.authenticated)
+                publish_topic = broadcast["topic"]
+                publish_message = broadcast["data"]
+                if (handler.session.session_info.authenticated == True):
+                    self.logger.debug("1205")
+                    topicName = broadcast["topic"]
+                    topicName_byte =  force_bytes(topicName)
+                    self.logger.debug("1208")
+                    h = hmac.HMAC(handler.session.session_info.session_key, hashes.SHA256())
+                    h.update(topicName_byte)
+                    signature = h.finalize()
+                    self.logger.debug("1212")
+
+                    topicName_and_sign = topicName_byte + b'::::' + signature
+                    self.logger.debug("1215")
+
+
+                    backend = default_backend()
+                    encryptor = Cipher(algorithms.AES(handler.session.session_info.session_key), modes.ECB(), backend).encryptor()
+                    padder = padding2.PKCS7(algorithms.AES(handler.session.session_info.session_key).block_size).padder()
+                    padded_data = padder.update(topicName_and_sign) + padder.finalize()
+                    encrypted_topic = encryptor.update(padded_data) + encryptor.finalize()
+                    encrypted_topic_hex = encrypted_topic.hex() 
+                    publish_topic = encrypted_topic_hex
+                    self.logger.debug("1225")
+
+
+
+
+                    payload = broadcast["data"]
+                    
+                    self.logger.debug("1196 payload type")
+                    self.logger.debug("1196 payload type %s", type(broadcast["data"]))
+                    self.logger.debug("1196 payload %s", broadcast["data"])
+
+                    h = hmac.HMAC(handler.session.session_info.session_key, hashes.SHA256())
+                    h.update(payload)
+                    signature = h.finalize()
+
+                    payload_and_sign = payload + b'::::' + signature
+                    self.logger.debug("1241")
+
+
+                    backend = default_backend()
+                    encryptor = Cipher(algorithms.AES(handler.session.session_info.session_key), modes.ECB(), backend).encryptor()
+                    padder = padding2.PKCS7(algorithms.AES(handler.session.session_info.session_key).block_size).padder()
+                    padded_data = padder.update(payload_and_sign) + padder.finalize()
+                    encrypted_payload = encryptor.update(padded_data) + encryptor.finalize()
+                    publish_message = encode_data_with_length(encrypted_payload)
+
+                    self.logger.debug("1250")
+                    self.logger.debug("1252 payload %s", broadcast["data"])
+                    self.logger.debug("1253 topic %s", broadcast["topic"])
+
                 task = asyncio.ensure_future(
                     handler.mqtt_publish(
-                        broadcast["topic"],
-                        broadcast["data"],
+                        publish_topic,
+                        publish_message,
                         qos,
                         retain=False,
                     ),
                 )
+                self.logger.debug("1263")
                 running_tasks.append(task) 
+                self.logger.debug("1265")
 
 
     async def _retain_broadcast_message(self, broadcast, qos, target_session):
