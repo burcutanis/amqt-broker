@@ -83,3 +83,9 @@ hex 256bit
 
 sesionda receive edilen mesajların databasede tutulması
 
+
+client tarafında unsubscribea encrypt eklenmeli
+
+
+look for the structure of unsubscribe messages and topics field of the payload
+

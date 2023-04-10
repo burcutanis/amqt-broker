@@ -135,13 +135,8 @@ class BrokerProtocolHandler(ProtocolHandler):
             unpadded = padder.update(decrypted_data) + padder.finalize()
             index1 = unpadded.index(b'::::')
             payload = unpadded[0:index1]
-            #
-            '''
-            macOfPayload = unpadded[index1+4:]
 
 
-            '''
-            #
             payload_string = bytes.decode(unpadded)
 
             indexMAC = payload_string.rfind("::::")
@@ -493,9 +488,18 @@ class BrokerProtocolHandler(ProtocolHandler):
     """ START 29mart2023 te eklendi """    
 
     async def handle_unsubscribe(self, unsubscribe: UnsubscribePacket):
+
+        #assuming topic names
+        payload = unsubscribe.payload
+        
+        #topics, mac(topics)
+
+
+        #decrypt, get id and topics
+
         unsubscription = {
             "packet_id": unsubscribe.variable_header.packet_id,
-            "topics": unsubscribe.payload.topics,
+            "topics": unsubscribe.payload.topics, #list
         }
         await self._pending_unsubscriptions.put(unsubscription)
 
