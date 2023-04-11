@@ -14,94 +14,50 @@ https://github.com/reverseame/chiton -this repo can be used for encapsulation ma
 
 https://gchq.github.io/CyberChef/#recipe=Parse_X.509_certificate('PEM') -parse x509 certificate, we can use to double check if the certificates are in ocrrect form
 
-a class can be created
-client_id_unique, received_certificate, key_pairs, .......
-
-https://www.w3schools.com/python/python_classes.asp
-
-before sending to the database, we can look for some sql files to be parsed and to be inserted into the newly created table
 
 client_id subscriptions tablosu lazım ?????
 
 
-
 broker.py 2333: brker starts to listen for connections
-
 broker.py 459 log added
-
 mqtt protocol handler 192de publish ediyor
 
-
-clientconnection classı ve clientsessions tableı ile ilgili:
-eğer silinecekse gerekli deletei yapacak fonsiyon eklenmeli, databsede gereksiz row bulunmaması için
-
+key establishment bittikten sonra alakalı subscriptionu silinmeli gereksiz yer kaplamamak için (client_id ve authenticationTopice olan subscriptionlar)
+(bu gerekli mi?)
 
 
-databasee aynı client yeni bir session açıyorsa eskisini silme gelmeli çünkü primary key şuan client_id -->tam bitmedi
-silme nereye eklenecek, client disconnect olduğunda session siliniyor olmalı
-
-
-key establishment bittikten sonra aöakalı subscriptionu silinmeli gereksiz yer kaplamamak için (client_id ve authenticationTopice olan subscriptionlar)
-
-
-her durumunda silinecek
-
-
-
-pahoda reconnect attığı yere if else ekleyip else düşen publisjhe emsajından not auth oku ve reconnect atma
-
-
-
-mac var mı normal
-
-
-broker handler 150lere bir sürü try except lazım
-
-maceler matchlemezse connection drop
-
-
+maceler matchlemezse connection drop?
 session keyi olan authenticated bir client yanlış mac ederse client komple atılmalı mı yoksa choşce token kısmı sıfırdan mı başlamalı?
 
 
 light/# şeklinde gelirse bütün subtopiclerin choiceTokenları return edilmeli
 sublar için aynı token bütük sıkıntı yaratır, sibling topiclere erişim sağlar
 
+------YAPILACAKLAR------
+
+- flagker eklenecek
+
+- macin içinde flagler yok
+
+- sesionda receive edilen mesajların databasede tutulması
+
+- client tarafında unsubscribea encrypt eklenmeli
+
+- look for the structure of unsubscribe messages and topics field of the payload
+
+- unsubscribe iki tarafta da yapılmalı
+
+- client tarafı birden fazla topic adı yollarken ve multiple choiceToken receive
+
+- else caselerinde disconnect olmalı mı
+
+- gui buton disable connect öncesi için
+
+- LOG DÜZENLEMESİ GEREKİYOR
+
+- encapsulation en sonra kalıyor
 
 
-actual_data yanlış geliyor olabilir broker tarafına bakmak lazım yanlışne padder hatası veriyor
+------düzeltilecek şeyler------
 
-
-
-flagker eklenecek
-macin içinde flagler yok
-
-
-sesionda receive edilen mesajların databasede tutulması
-
-
-client tarafında unsubscribea encrypt eklenmeli
-
-
-look for the structure of unsubscribe messages and topics field of the payload
-
-
-unsubscribe iki tarafta da yapılmalı
-
-
-client tarafı birden fazla topic adı yollarken ve multiple choiceToken receive
-
-
-
-else caselerinde disconnect olmalı mı
-
-
-
-gui buton disable connect öncesi için
-
-
-
-LOG DÜZENLEMESİ GEREKİYOR
-
-
-
-encapsulation en sonra kalıyor
+- client tarafında terminale ctrl c atınca guiler kapanmıyor
