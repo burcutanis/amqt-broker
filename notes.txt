@@ -51,13 +51,7 @@ sublar için aynı token bütük sıkıntı yaratır, sibling topiclere erişim 
 
 - else caselerinde disconnect olmalı mı
 
-- gui buton disable connect öncesi için
-
-- LOG DÜZENLEMESİ GEREKİYOR
-
 - encapsulation en sonra kalıyor
 
 
 ------düzeltilecek şeyler------
-
-- client tarafında terminale ctrl c atınca guiler kapanmıyor
