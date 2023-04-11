@@ -273,7 +273,7 @@ class Broker:
         CERT_FILE = "samples/cert_create_read_crypto/key.pem"
         C_F = join(cert_dir, CERT_FILE)
         private_key = "None"
-        self.logger.debug("#####in function")
+        self.logger.debug("cert_read_fnc called")
         try: 
             if exists(C_F):
                 with open(CERT_FILE, "rb") as key_file:
@@ -291,7 +291,7 @@ class Broker:
                 )
                 private_pem.splitlines()[0]
                 
-                self.logger.debug("Private key: %s", private_pem )
+                self.logger.debug("Private key: \n%s\n", private_pem )
                 public_pem = public_key.public_bytes(
                 encoding=serialization.Encoding.PEM,
                 format=serialization.PublicFormat.SubjectPublicKeyInfo
@@ -720,16 +720,20 @@ class Broker:
                             signature = h.finalize()
 
                             if (signature == mac_of_topicName):
+
+                                self.logger.debug("MAC OF THE SUBSCRIBED TOPIC IS THE SAME")
+                                
+
                                 topicName_str = bytes.decode(topicName)
                                 my_list = list(subscription)
                                 my_list[0] = topicName_str
                                 subscription = tuple(my_list)
-                                self.logger.debug("#723 SUBSCRIPTION %s", subscription)
+                                self.logger.debug("#broker.py, 727: SUBSCRIPTION %s", subscription)
                                 result = await self.add_subscription(
                                     subscription, client_session
                                     )
                             else: 
-                                self.logger.debug("722# MAC OF THE SUBSCRIBED TOPIC IS NOT SAME")
+                                self.logger.debug("MAC OF THE SUBSCRIBED TOPIC IS NOT SAME")
                         else: 
                              result = await self.add_subscription(
                             subscription, client_session
@@ -778,7 +782,7 @@ class Broker:
                     subscribe_waiter = asyncio.Task(
                         handler.get_next_pending_subscription()
                     )
-                    self.logger.debug(repr(self._subscriptions))
+                    #self.logger.debug(repr(self._subscriptions)) #is it needed?
                 if wait_deliver in done:
                     if self.logger.isEnabledFor(logging.DEBUG):
                         self.logger.debug(
@@ -834,8 +838,8 @@ class Broker:
                                 signature = h.finalize()
 
                                 if (signature == mac_of_topicName):
-                                    self.logger.debug("796# MAC OF TOPIC NAME IS SAME")
-                                    self.logger.debug("800# CHOİCE TOKEN TOPIC Mİ: %s", topicName)
+                                    self.logger.debug("broker.py 841: MAC OF TOPIC NAME IS SAME")
+                                    self.logger.debug("broker.py 842: CHOİCE TOKEN TOPIC: %s", topicName)
                                     if (topicName == b'choiceToken'):#asks for a choice token here 
                                         await (handler.sendChoiceToken(app_message.topic, app_message.data))
 
@@ -852,7 +856,7 @@ class Broker:
                                         index2 = unpadded.index(b'::::')
                                         payload = unpadded[0:index2]
                                         mac_of_payload = unpadded[index2+4:]
-                                        self.logger.debug("816# PAYLOAD BROKER.PY: %s", payload)
+                                        self.logger.debug("859 PAYLOAD BROKER.PY: %s", payload)
 
                                         h = hmac.HMAC(client_session.session_info.session_key, hashes.SHA256())
                                         h.update(payload)
@@ -1163,7 +1167,7 @@ class Broker:
         broadcast = await self._broadcast_queue.get()
 
         if self.logger.isEnabledFor(logging.DEBUG):
-            self.logger.debug("broadcasting %r", broadcast["data"])
+            self.logger.debug("broadcasting: %r", broadcast["data"])
 
         for k_filter in self._subscriptions:
             if broadcast["topic"].startswith("$") and (
@@ -1201,24 +1205,24 @@ class Broker:
                 #modification
                 ####################################################3burası bir client publish ettiğinde çağrılıyor
                 handler = self._get_handler(target_session)#target session: subscribe olan clientlar
-                self.logger.debug("1196 handler.session.session_info.client_id %s", handler.session.session_info.client_id)
-                self.logger.debug("1196 topicname type %s", type(broadcast["topic"]))
-                self.logger.debug("1196 topicname %s", broadcast["topic"])
-                self.logger.debug("1196 handler.session.session_info.client_id %s", handler.session.session_info.authenticated)
+                self.logger.debug("1196 handler.session.session_info.client_id: %s", handler.session.session_info.client_id)
+                self.logger.debug("1196 topicname type: %s", type(broadcast["topic"]))
+                self.logger.debug("1196 topicname: %s", broadcast["topic"])
+                self.logger.debug("1196 handler.session.session_info.authenticated: %s", handler.session.session_info.authenticated)
                 publish_topic = broadcast["topic"]
                 publish_message = broadcast["data"]
                 if (handler.session.session_info.authenticated == True):
-                    self.logger.debug("1205")
+                    #self.logger.debug("1205")
                     topicName = broadcast["topic"]
                     topicName_byte =  force_bytes(topicName)
-                    self.logger.debug("1208")
+                    #self.logger.debug("1208")
                     h = hmac.HMAC(handler.session.session_info.session_key, hashes.SHA256())
                     h.update(topicName_byte)
                     signature = h.finalize()
-                    self.logger.debug("1212")
+                    #self.logger.debug("1212")
 
                     topicName_and_sign = topicName_byte + b'::::' + signature
-                    self.logger.debug("1215")
+                    #self.logger.debug("1215")
 
 
                     backend = default_backend()
@@ -1228,23 +1232,23 @@ class Broker:
                     encrypted_topic = encryptor.update(padded_data) + encryptor.finalize()
                     encrypted_topic_hex = encrypted_topic.hex() 
                     publish_topic = encrypted_topic_hex
-                    self.logger.debug("1225")
+                    #self.logger.debug("1225")
 
 
 
 
                     payload = broadcast["data"]
                     
-                    self.logger.debug("1196 payload type")
-                    self.logger.debug("1196 payload type %s", type(broadcast["data"]))
-                    self.logger.debug("1196 payload %s", broadcast["data"])
+                    #self.logger.debug("1196 payload type")
+                    self.logger.debug("1196 payload type: %s", type(broadcast["data"]))
+                    self.logger.debug("1196 payload: %s", broadcast["data"])
 
                     h = hmac.HMAC(handler.session.session_info.session_key, hashes.SHA256())
                     h.update(payload)
                     signature = h.finalize()
 
                     payload_and_sign = payload + b'::::' + signature
-                    self.logger.debug("1241")
+                    #self.logger.debug("1241")
 
 
                     backend = default_backend()
@@ -1254,9 +1258,9 @@ class Broker:
                     encrypted_payload = encryptor.update(padded_data) + encryptor.finalize()
                     publish_message = encode_data_with_length(encrypted_payload)
 
-                    self.logger.debug("1250")
-                    self.logger.debug("1252 payload %s", broadcast["data"])
-                    self.logger.debug("1253 topic %s", broadcast["topic"])
+                    #self.logger.debug("1250")
+                    self.logger.debug("1252 payload: %s", broadcast["data"])
+                    self.logger.debug("1253 topic: %s", broadcast["topic"])
 
                 #authenticated değil ise client açık bir şekilde gidiyor, normal yapı encryptsiz bir şekilde devam ediyor
                 task = asyncio.ensure_future(
@@ -1267,9 +1271,9 @@ class Broker:
                         retain=False,
                     ),
                 )
-                self.logger.debug("1263")
+                #self.logger.debug("1263")
                 running_tasks.append(task) 
-                self.logger.debug("1265")
+                #self.logger.debug("1265")
 
 
     async def _retain_broadcast_message(self, broadcast, qos, target_session):
@@ -1373,7 +1377,7 @@ class Broker:
         except KeyError:
             session = None
         if session is None:
-            self.logger.debug("Delete session : session %s doesn't exist" % client_id)
+            self.logger.debug("Delete session : session with client id:%s doesn't exist" % client_id)
             return
 
         # Delete subscriptions

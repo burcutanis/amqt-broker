@@ -101,12 +101,12 @@ class BrokerProtocolHandler(ProtocolHandler):
         await self._send_packet(PingRespPacket.build())
     
     async def handle_subscribe(self, subscribe: SubscribePacket):
-        self.logger.debug("#######session client ID %s", self.session.client_id) #Burcu
+        self.logger.debug("Session client ID %s", self.session.client_id) #Burcu
         subscription = {
             "packet_id": subscribe.variable_header.packet_id,
             "topics": subscribe.payload.topics,
         }
-        self.logger.debug("#######Inside hande_subscribe in broker_handler.py" )
+        self.logger.debug("Inside hande_subscribe in broker_handler.py" )
         await self._pending_subscriptions.put(subscription)
     
     """START: 4 Nisan'da eklendi"""
@@ -240,7 +240,7 @@ class BrokerProtocolHandler(ProtocolHandler):
         try:
             nonce2 = secrets.token_urlsafe()
             self.session.session_info.n2 = bytes(nonce2, 'UTF-8')
-            self.logger.debug("####NONCE: %s", nonce2)
+            self.logger.debug("NONCE2: %s", nonce2)
             value_str = nonce2 + "::::" + self.session.client_id
             value = force_bytes(value_str)
             dh1_shared = self.session.session_info.dh_shared_key
@@ -263,17 +263,17 @@ class BrokerProtocolHandler(ProtocolHandler):
                             
 
     async def broker_df_publish (self, topicname, data, x509, x509_private_key):
-        self.logger.debug("#######108 TOPIC NAME: , %s", topicname )
+        self.logger.debug("TOPIC NAME: , %s", topicname )
         if (topicname == self.session.client_id):
             try:
                 dh1 = DiffieHellman(group=14, key_bits=2048)    #bilgesu: key size increased to 2048
                 dh1_public = dh1.get_public_key()
                 
-                self.logger.debug("#######114 BROKER DH PUBLIC KEY %s", dh1_public)
+                self.logger.debug("BROKER DH PUBLIC KEY: %s", dh1_public)
                 self.session.session_info.dh = dh1
 
             except Exception as e:
-                self.logger.warning("YYYYYYYYYYY %r", e.args)
+                self.logger.warning("Exception: %r", e.args)
 
             try:
                 nonce1 = secrets.token_urlsafe()
@@ -315,13 +315,13 @@ class BrokerProtocolHandler(ProtocolHandler):
                 #modification end
                 
             except Exception as e2:
-                self.logger.warning("XXXXXXXXXXXX %r ", e2.args)
+                self.logger.warning("Exception: %r ", e2.args)
    
             #self.logger.debug("#######session state %s", self.session.session_info.key_establishment_state)
 
         elif (topicname == "AuthenticationTopic"):
             if (self.session.session_info.key_establishment_state == 5):
-                self.logger.debug("#######159 CLIENT DH PUBLIC KEY:  %s", data)
+                self.logger.debug("CLIENT DH PUBLIC KEY:  %s", data)
 
                 index = data.index(b'::::')
                 client_x509_pem = data[0:index]
@@ -340,10 +340,10 @@ class BrokerProtocolHandler(ProtocolHandler):
                 dh1 = self.session.session_info.dh
                 dh1_shared = dh1.generate_shared_key(client_dh_public_key)
 
-                self.logger.debug("#######170 CLIENT X509 CERTIFICATE:  %s", client_x509_pem)
-                self.logger.debug("#######173 CLIENT DH PUBLIC KEY %s", client_dh_public_key)
-                self.logger.debug("#######175 CLIENT RSA SIGN %s", client_rsa_sign)
-                self.logger.debug("#######175 CLIENT NONCE %s", nonce)
+                self.logger.debug("CLIENT X509 CERTIFICATE:  %s", client_x509_pem)
+                self.logger.debug("CLIENT DH PUBLIC KEY %s", client_dh_public_key)
+                self.logger.debug("CLIENT RSA SIGN %s", client_rsa_sign)
+                self.logger.debug("CLIENT NONCE %s", nonce)
 
                 client_x509_bytes = bytes(client_x509_pem)
                 client_x509 = load_pem_x509_certificate(client_x509_bytes )
@@ -355,14 +355,14 @@ class BrokerProtocolHandler(ProtocolHandler):
                     format=serialization.PublicFormat.SubjectPublicKeyInfo
                 )
 
-                self.logger.debug("#######177 CLIENT X509 PUBLIC KEY %s", client_x509_public_key_pem)
+                self.logger.debug("CLIENT X509 PUBLIC KEY %s", client_x509_public_key_pem)
 
                 client_ID_byte = bytes(self.session.client_id, 'UTF-8')
                 message = client_dh_public_key + b'::::' + nonce + b'::::' + client_ID_byte
                 message_bytes = bytes(message)
                 client_rsa_sign_bytes = bytes(client_rsa_sign)
 
-                self.logger.debug("#######179 MESSAGE IN RSA SIGN: %s", message_bytes)
+                self.logger.debug("MESSAGE IN RSA SIGN: %s", message_bytes)
 
                 self.session.session_info.key_establishment_state = 6
 
@@ -427,13 +427,13 @@ class BrokerProtocolHandler(ProtocolHandler):
                     await self.handle_connection_closed()
 
 
-                self.logger.debug("#######209 SHARED KEY %s", dh1_shared)
-                self.logger.debug("#######210 shared key type %s", type(dh1_shared))
-                self.logger.debug("#######211 shared key len %s", len(dh1_shared))
+                self.logger.debug("SHARED KEY %s", dh1_shared)
+                self.logger.debug("shared key type %s", type(dh1_shared))
+                self.logger.debug("shared key len %s", len(dh1_shared))
 
             elif (self.session.session_info.key_establishment_state == 8):
                 
-                self.logger.debug("#######242  DATA OF STATE 8 :  %s", data)
+                self.logger.debug("DATA OF STATE 8 :  %s", data)
                 backend = default_backend()
                 decryptor = Cipher(algorithms.AES(self.session.session_info.session_key), modes.ECB(), backend).decryptor()
                 padder = padding2.PKCS7(algorithms.AES(self.session.session_info.session_key).block_size).unpadder()
@@ -450,10 +450,10 @@ class BrokerProtocolHandler(ProtocolHandler):
 
                 #current_client_id = nonce3_clientID[index2+2:] #WRONG VERSION FOR NOT AUTH TESTING
                 current_client_id = nonce3_clientID[index2+4:] #CORRECT VERSION 
-                self.logger.debug("*******************current_client_id %s", current_client_id)
-                self.logger.debug("*******************self.session.client_id %s", self.session.client_id)
-                self.logger.debug("sent_nonce2 %s", sent_nonce2)
-                self.logger.debug("self.nonce2 %s", self.session.session_info.n2)
+                self.logger.debug("current_client_id: %s", current_client_id)
+                self.logger.debug("self.session.client_id: %s", self.session.client_id)
+                self.logger.debug("sent_nonce2: %s", sent_nonce2)
+                self.logger.debug("self.nonce2: %s", self.session.session_info.n2)
                 if current_client_id == force_bytes(self.session.client_id) and sent_nonce2 == force_bytes(self.session.session_info.n2):
                     self.logger.debug("CLIENT IS AUTHENTICATED")
                     self.session.session_info.authenticated = True
