@@ -472,7 +472,7 @@ class BrokerProtocolHandler(ProtocolHandler):
                     self.session.session_info.key_establishment_state = 10 #final state
 
                 else: 
-                    self.logger.debug("CLIENT CANNOT AUTHENTICATED")
+                    self.logger.debug("CLIENT CANNOT AUTHENTICATED, will publish a message to inform the client")
                     self.session.session_info.disconnect_flag = True
 
                     
