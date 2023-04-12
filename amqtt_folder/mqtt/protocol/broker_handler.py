@@ -227,6 +227,9 @@ class BrokerProtocolHandler(ProtocolHandler):
 
                 payload_mac_merged = payload_send + signature 
 
+                #bilgesu: modification
+                self.logger.debug("*************************payload_mac_merged: %s", payload_mac_merged)
+
                 encryptor = Cipher(algorithms.AES(self.session.session_info.session_key), modes.ECB(), backend).encryptor()
                 padder = padding2.PKCS7(algorithms.AES(self.session.session_info.session_key).block_size).padder()
                 padded_data = padder.update(payload_mac_merged) + padder.finalize()
