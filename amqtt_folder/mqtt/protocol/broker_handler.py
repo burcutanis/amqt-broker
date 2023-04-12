@@ -49,6 +49,23 @@ import secrets
 import binascii
 from binascii import unhexlify
 
+
+#bilgesu: modification: flags might be needed
+WILL_RETAIN_FLAG = 0x20  
+WILL_FLAG = 0x04    
+WILL_QOS_MASK = 0x18        
+CLEAN_SESSION_FLAG = 0x02    
+RESERVED_FLAG = 0x01
+QOS_0 = 0x00
+QOS_1 = 0x01
+QOS_2 = 0x02
+
+#needed flags to be reached
+'''clientId, dupFlag, QoS, retainFlag, packetIDentifier'''
+#bilgesu: modificaiton end
+
+
+
 class BrokerProtocolHandler(ProtocolHandler):
     def __init__(
         self, plugins_manager: PluginManager, session: Session = None, loop=None

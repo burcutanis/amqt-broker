@@ -53,5 +53,11 @@ sublar için aynı token bütük sıkıntı yaratır, sibling topiclere erişim 
 
 - encapsulation en sonra kalıyor
 
+- connection_class_choicetokenı kullanıyor muyuz ona ögre loglar düzenlenebilir
+
+- gereken flagler: dupFlag, QoS, retainFlag, packetIDentifier
+
+- client id de eklenebilir ama gerek var mı
+
 
 ------düzeltilecek şeyler------
