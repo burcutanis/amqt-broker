@@ -459,7 +459,7 @@ class BrokerProtocolHandler(ProtocolHandler):
                 padder = padding2.PKCS7(algorithms.AES(self.session.session_info.session_key).block_size).unpadder()
                 decrypted_data = decryptor.update(data) 
                 unpadded = padder.update(decrypted_data) + padder.finalize()
-                self.logger.debug("unpadded", unpadded)
+                self.logger.debug("unpadded %s", unpadded)
                 index1 = unpadded.index(b'::::')
                 sent_nonce2 = unpadded[0:index1]
                 nonce3_clientID = unpadded[index1+4:]

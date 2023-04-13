@@ -837,6 +837,10 @@ class Broker:
                                 h.update(topicName)
                                 signature = h.finalize()
 
+
+                                self.logger.debug("broker.py 840: decrypted received mac: %s", mac_of_topicName)
+
+
                                 if (signature == mac_of_topicName):
                                     self.logger.debug("broker.py 841: MAC OF TOPIC NAME IS SAME")
                                     self.logger.debug("broker.py 842: CHOİCE TOKEN TOPIC: %s", topicName)
@@ -886,14 +890,16 @@ class Broker:
                                             prepared_data_encrypted = unpadded
 
                                             #bilgesu: modification
-                                            await self._broadcast_message(client_session, client_session.client_id, data=prepared_data_encrypted)
+                                            await (self._broadcast_message(client_session, client_session.client_id, data=prepared_data_encrypted))
 
 
                                 else: 
-                                    self.logger.debug("796# MAC OF TOPIC NAME IS NOT SAME")  
+                                    self.logger.debug("broker.py, 897: MAC OF TOPIC NAME IS NOT SAME")  
 
 
                                     prepared_data = client_session.client_id + "::::" + "signVerifyFailed"
+
+                                    self.logger.debug("preapred data: %s", prepared_data)
 
                                     backend = default_backend()
                                     decryptor = Cipher(algorithms.AES(client_session.session_info.session_key), modes.ECB(), backend).decryptor()
@@ -904,7 +910,8 @@ class Broker:
                                     prepared_data_encrypted = unpadded
 
                                     #bilgesu: modification
-                                    await self._broadcast_message(client_session, client_session.client_id, data=prepared_data_encrypted)
+                                    await (handler.mqtt_publish(client_session, client_session.client_id, data=prepared_data_encrypted))
+                                    #bilgesu:modification
                                     
 
 
