@@ -59,5 +59,11 @@ sublar için aynı token bütük sıkıntı yaratır, sibling topiclere erişim 
 
 - client id de eklenebilir ama gerek var mı
 
+- publish atılırken de macler eşlemeyebilir, client bilgilendirilmeli, publisher listen olmalı bu konuda, bunun için client_connection_classa ekleme yapmak lazım
+
+- eğer çoklu subs durumunda sadece bir topic maci bozuksa ne yapılmalı? hepsi mi engellenmeli yoksa sadece bir tnaesi mi?
+
+- client subscribe atarken de sendBadMAC gerekebilir, gereken her yer eklemek lazım
+
 
 ------düzeltilecek şeyler------
