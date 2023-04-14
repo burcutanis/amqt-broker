@@ -273,7 +273,8 @@ class Broker:
         CERT_FILE = "samples/cert_create_read_crypto/key.pem"
         C_F = join(cert_dir, CERT_FILE)
         private_key = "None"
-        self.logger.debug("cert_read_fnc called")
+        self.logger.debug("----FUNCTION TO READ THE X509 CERTIFICATE----")
+        self.logger.info("----FUNCTION TO READ THE X509 CERTIFICATE----")
         try: 
             if exists(C_F):
                 with open(CERT_FILE, "rb") as key_file:
@@ -291,7 +292,7 @@ class Broker:
                 )
                 private_pem.splitlines()[0]
                 
-                self.logger.debug("Private key: \n%s\n", private_pem )
+                #self.logger.debug("Private key: \n%s\n", private_pem )
                 public_pem = public_key.public_bytes(
                 encoding=serialization.Encoding.PEM,
                 format=serialization.PublicFormat.SubjectPublicKeyInfo
@@ -308,14 +309,24 @@ class Broker:
                     format=serialization.PublicFormat.SubjectPublicKeyInfo
                     )
                     pem2.splitlines()[0]
-                    print(pem2)
+                    #print(pem2)
 
             else: 
                 self.logger.debug("Broker cannot read the cerficate")
+                self.logger.info("Broker cannot read the cerficate")
 
             self.private_key = private_key
             self.public_key = public_key
             self.x509 = x509
+            x509_pem = x509.public_bytes(encoding=serialization.Encoding.PEM)
+            self.logger.debug("X509 CERTIFICIATE OF THE BROKER: %s ", x509_pem)
+            self.logger.debug("X509 PUBLIC KEY OF THE BROKER: %s ", pem2)
+            self.logger.debug("Private key of X509 is read from the certificate")
+            self.logger.info("X509 CERTIFICIATE OF THE BROKER: %s ", x509_pem)
+            self.logger.info("X509 PUBLIC KEY OF THE BROKER: %s ", pem2)
+            self.logger.info("Private key of X509 is read from the certificate")
+
+
         except:
             self.logger.warning("Broker cannot read the cerficate")  
         
@@ -339,6 +350,7 @@ class Broker:
             self._retained_messages = dict()
             self.transitions.start()
             self.logger.debug("Broker starting")
+            self.logger.info("Broker starting")
         except (MachineError, ValueError) as exc:
             # Backwards compat: MachineError is raised by transitions < 0.5.0.
             self.logger.warning(
@@ -434,12 +446,14 @@ class Broker:
             await self.plugins_manager.fire_event(EVENT_BROKER_POST_START)
 
             # Start broadcast loop
+            #self.logger.debug("449")
             self._broadcast_task = asyncio.ensure_future(self._broadcast_loop())
             self.cert_read_fnc()
             
            
          
             self.logger.debug("Broker started")
+            self.logger.info("Broker started")
         except Exception as e:
             self.logger.error("Broker startup failed: %s" % e)
             self.transitions.starting_fail()
@@ -498,7 +512,7 @@ class Broker:
 
         remote_address, remote_port = writer.get_peer_info()
         self.logger.info(
-            "(broker.py, line 403: Connection from %s:%d on listener '%s'"
+            "Connection from %s:%d on listener '%s'"
             % (remote_address, remote_port, listener_name)
         )
 
@@ -599,7 +613,8 @@ class Broker:
             EVENT_BROKER_CLIENT_CONNECTED, client_id=client_session.client_id
         )
 
-        self.logger.debug("%s Start messages handling" % client_session.client_id)
+        #self.logger.debug("%s Start messages handling" % client_session.client_id)
+        self.logger.info("Client ID: %s Start messages handling" % client_session.client_id)
         await handler.start()
         self.logger.debug(
             "Retained messages queue size: %d"
@@ -657,8 +672,11 @@ class Broker:
                                     client_session.will_message,
                                     client_session.will_qos,
                                 )
-                    self.logger.debug(
-                        "%s Disconnecting session" % client_session.client_id  #######buraya active to inactive eklenebilir
+                    #self.logger.debug(
+                     #   "%s Disconnecting session" % client_session.client_id  #######buraya active to inactive eklenebilir
+                    #)
+                    self.logger.info(
+                        "Client ID: %s Disconnecting session" % client_session.client_id  #######buraya active to inactive eklenebilir
                     )
                     await self._stop_handler(handler)
 
@@ -680,6 +698,9 @@ class Broker:
                     self.logger.debug(
                         "%s handling unsubscription" % client_session.client_id
                     )
+                    self.logger.info(
+                        "%s handling unsubscription" % client_session.client_id
+                    )
                     unsubscription = unsubscribe_waiter.result()
                     for topic in unsubscription["topics"]:
                         self._del_subscription(topic, client_session)
@@ -696,14 +717,20 @@ class Broker:
                         handler.get_next_pending_unsubscription()
                     )
                 if subscribe_waiter in done:
-                    self.logger.debug(
-                        "%s handling subscription" % client_session.client_id
+                    #self.logger.debug(
+                     #   "%s handling subscription" % client_session.client_id
+                    #)
+                    self.logger.info(
+                        "Client ID: %s handling subscription" % client_session.client_id
                     )
                     subscriptions = subscribe_waiter.result()
                     return_codes = []
                     for subscription in subscriptions["topics"]:
+
                         #MODIFICATION START 10 NISAN
                         if (client_session.session_info.authenticated == True):
+                            self.logger.info("#####SUBSRCIPTION RECEIVED FROM CLIENT: %s#####", client_session.client_id  )
+                            self.logger.info("CLIENT: %s, AUTHENTICATED ENCRYPTION VERSION OF THE SUBSRCIPTION: %s ", client_session.client_id, subscription[0]  )
                             topicnamebyte = unhexlify(subscription[0])
                             backend = default_backend()
                             decryptor = Cipher(algorithms.AES(client_session.session_info.session_key), modes.ECB(), backend).decryptor()
@@ -719,21 +746,29 @@ class Broker:
                             h.update(topicName)
                             signature = h.finalize()
 
+                            self.logger.info("CLIENT: %s, DECRYPTED VERSION OF THE SUBSRCIPTION: %s ", client_session.client_id, topicName)
+                            self.logger.info("CLIENT: %s, RECEIVED MAC OF SUBSCRIBED TOPIC: %s ", client_session.client_id, mac_of_topicName  )
+                            self.logger.info("CLIENT: %s, CALCULATED MAC OF SUBSCRIBED TOPIC: %s ", client_session.client_id, signature  )
+
+
                             if (signature == mac_of_topicName):
 
-                                self.logger.debug("MAC OF THE SUBSCRIBED TOPIC IS THE SAME")
+                              
+                                self.logger.info("CLIENT: %s, MAC OF THE SUBSCRIBED TOPIC IS THE SAME", client_session.client_id)
                                 
 
                                 topicName_str = bytes.decode(topicName)
                                 my_list = list(subscription)
                                 my_list[0] = topicName_str
                                 subscription = tuple(my_list)
-                                self.logger.debug("#broker.py, 727: SUBSCRIPTION %s", subscription)
-                                result = await self.add_subscription(
-                                    subscription, client_session
-                                    )
+                                #self.logger.debug("#broker.py, 727: SUBSCRIPTION %s", subscription)
+                                if (subscription[0] != client_session.client_id):
+                                    result = await self.add_subscription(
+                                        subscription, client_session
+                                        )
                             else: 
-                                self.logger.debug("MAC OF THE SUBSCRIBED TOPIC IS NOT SAME")
+                               
+                                self.logger.info("CLIENT: %s, MAC OF THE SUBSCRIBED TOPIC IS NOT SAME", client_session.client_id,)
                         else: 
                              result = await self.add_subscription(
                             subscription, client_session
@@ -760,23 +795,13 @@ class Broker:
 
 
                             """ Burcu: START 29mart2023 te eklendi if topic = client_id publish message """    
-                            xtopic = subscription[0] 
-                             
+                              
                             if (subscription[0] == client_session.client_id) :
                                 #client_session.session_info.key_establishment_state == 3
+                                self.logger.info("----CLIENT WAS SUBSCRIBED TO ITS CLIENT ID(STEP 3 of DH)----")
                                 await (handler.broker_df_publish(subscription[0], "none", self.x509, self.private_key))
                                 #client_session.session_info.key_establishment_state == 5
-                            else:
-                                xmsg="testxxx topic != clientid"
-
-                           
-                            #client_df_waiter = asyncio.ensure_future(handler.broker_shared_generated( dh1_public, dh1))
-
-                           
-                                
-                                
-                            #await self._broadcast_message(client_session, xtopic,encode_string(xmsg) ) 
-                            
+                        
                             """ Burcu:  STOP 29mart2023 te eklendi STOP """
                             
                     subscribe_waiter = asyncio.Task(
@@ -786,6 +811,9 @@ class Broker:
                 if wait_deliver in done:
                     if self.logger.isEnabledFor(logging.DEBUG):
                         self.logger.debug(
+                            "%s handling message delivery" % client_session.client_id
+                        )
+                        self.logger.info(
                             "%s handling message delivery" % client_session.client_id
                         )
                     app_message = wait_deliver.result()
@@ -822,6 +850,10 @@ class Broker:
                         #MODIFICATION START 10 NISAN
                         if (app_message.topic != "AuthenticationTopic"):  #modified here - burcu
                             if client_session.session_info.authenticated == True:
+                                self.logger.info("#####PUBLISHED RECEIVED FROM CLIENT: %s#####", client_session.client_id  )
+                                self.logger.info("CLIENT: %s, AUTHENTICATED ENCRYPTION VERSION OF THE TOPIC NAME IN PUBLISH PACKET: %s ", client_session.client_id, app_message.topic  )
+                                self.logger.info("CLIENT: %s, AUTHENTICATED ENCRYPTION VERSION OF THE PAYLOAD IN PUBLISH PACKET: %s ", client_session.client_id, app_message.data  )
+
                                 topicnamebyte = unhexlify(app_message.topic)
                                 backend = default_backend()
                                 decryptor = Cipher(algorithms.AES(client_session.session_info.session_key), modes.ECB(), backend).decryptor()
@@ -836,14 +868,17 @@ class Broker:
                                 h = hmac.HMAC(client_session.session_info.session_key, hashes.SHA256())
                                 h.update(topicName)
                                 signature = h.finalize()
+                                self.logger.info("CLIENT: %s, DECRYPTED VERSION OF THE PUBLISHED TOPIC: %s ", client_session.client_id, topicName  )
+                                self.logger.info("CLIENT: %s, RECEIVED MAC OF PUBLISHED TOPIC: %s ", client_session.client_id, mac_of_topicName  )
+                                self.logger.info("CLIENT: %s, CALCULATED MAC OF PUBLISHED TOPIC: %s ", client_session.client_id, signature  )
 
 
-                                self.logger.debug("broker.py 840: decrypted received mac: %s", mac_of_topicName)
+                                #self.logger.debug("broker.py 840: decrypted received mac: %s", mac_of_topicName)
 
 
                                 if (signature == mac_of_topicName):
-                                    self.logger.debug("broker.py 841: MAC OF TOPIC NAME IS SAME")
-                                    self.logger.debug("broker.py 842: CHOİCE TOKEN TOPIC: %s", topicName)
+                                    self.logger.info("CLIENT: %s, MAC OF TOPIC NAME IS SAME", client_session.client_id,)
+                                    
                                     if (topicName == b'choiceToken'):#asks for a choice token here 
                                         await (handler.sendChoiceToken(app_message.topic, app_message.data))
 
@@ -860,22 +895,28 @@ class Broker:
                                         index2 = unpadded.index(b'::::')
                                         payload = unpadded[0:index2]
                                         mac_of_payload = unpadded[index2+4:]
-                                        self.logger.debug("859 PAYLOAD BROKER.PY: %s", payload)
 
                                         h = hmac.HMAC(client_session.session_info.session_key, hashes.SHA256())
                                         h.update(payload)
                                         signature2 = h.finalize()
 
+
+                                        self.logger.info("CLIENT: %s, DECRYPTED PAYLOAD: %s", client_session.client_id, payload)
+                                        self.logger.info("CLIENT: %s, RECEIVED MAC OF PAYLOAD: %s ", client_session.client_id, mac_of_topicName  )
+                                        self.logger.info("CLIENT: %s, CALCULATED MAC OF PAYLOAD: %s ", client_session.client_id, mac_of_payload  )
+
+                                        
+
                                         if(mac_of_payload == signature2):
-                                            self.logger.debug("823# MAC OF PAYLOAD IS SAME")
+                                            self.logger.info("CLIENT: %s, OF PAYLOAD IS SAME", client_session.client_id )
                                             app_message.data = payload
-                                            self.logger.debug("825# PAYLOAD BROKER.PY: %s", app_message.data)
-                                            self.logger.debug("826# CHOICE TOKEN TOPIC: %s", app_message.topic)
+                                            #self.logger.debug("825# PAYLOAD BROKER.PY: %s", app_message.data)
+                                            #self.logger.debug("826# CHOICE TOKEN TOPIC: %s", app_message.topic)
                                             await self._broadcast_message(   #clientlar publish etmek istediğinde
                                                 client_session, app_message.topic, app_message.data  ##şimdilik burası update edilecek
                                             )
                                         else: 
-                                            self.logger.debug("796# MAC OF PAYLOAD IS NOT SAME")
+                                            self.logger.info("CLIENT: %s, OF PAYLOAD IS  NOT SAME", client_session.client_id )
 
 
                                             prepared_data = client_session.client_id + "::::" + "signVerifyFailed"
@@ -1075,6 +1116,7 @@ class Broker:
 
     async def add_subscription(self, subscription, session):
         try:
+            self.logger.info("ADD SUBSCRIPTION: %s ", subscription )
             a_filter = subscription[0]
             if "#" in a_filter and not a_filter.endswith("#"):
                 # [MQTT-4.7.1-2] Wildcard character '#' is only allowed as last character in filter
@@ -1205,6 +1247,7 @@ class Broker:
 
     async def _run_broadcast(self, running_tasks: deque):
         broadcast = await self._broadcast_queue.get()
+        self.logger.debug("1249")
 
         if self.logger.isEnabledFor(logging.DEBUG):
             self.logger.debug("broadcasting: %r", broadcast["data"])
@@ -1261,6 +1304,8 @@ class Broker:
                 publish_message = broadcast["data"]
                 if (target_session.session_info.authenticated == True and source_session.session_info.authenticated == True):
                     self.logger.debug("1220 - both source session & destination session are authenticated")
+                    self.logger.info("####PUBLISH MESSAGE IS GOING TO RELAYED TO CLIENT: %s####", target_session.client_id)
+                    self.logger.info("CLIENT: %s, DECRYPTED VERSION OF THE DATA TO BE SEND %s FROM TOPIC: %s", target_session.client_id, publish_message, publish_topic)
                     topicName = broadcast["topic"]
                     topicName_byte =  force_bytes(topicName)
                     #self.logger.debug("1208")
@@ -1281,6 +1326,7 @@ class Broker:
                     encrypted_topic_hex = encrypted_topic.hex() 
                     publish_topic = encrypted_topic_hex
                     #self.logger.debug("1225")
+                    self.logger.info("CLIENT: %s, AUTHENTICATED ENCRYPTION VERSION OF THE TOPIC TO BE SEND %s", target_session.client_id,  encrypted_topic_hex)
 
 
 
@@ -1305,6 +1351,7 @@ class Broker:
                     padded_data = padder.update(payload_and_sign) + padder.finalize()
                     encrypted_payload = encryptor.update(padded_data) + encryptor.finalize()
                     publish_message = encode_data_with_length(encrypted_payload)
+                    self.logger.info("CLIENT: %s, AUTHENTICATED ENCRYPTION VERSION OF THE DATA TO BE SEND %s ", target_session.client_id,  encrypted_payload)
 
                     self.logger.debug("1252 payload: %s", broadcast["data"])
                     self.logger.debug("1253 topic: %s", broadcast["topic"])
@@ -1407,6 +1454,7 @@ class Broker:
             "Begin broadcasting messages retained due to subscription on '%s' from %s"
             % (subscription[0], format_client_message(session=session))
         )
+      
         publish_tasks = []
         handler = self._get_handler(session)
         for d_topic in self._retained_messages:
