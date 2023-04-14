@@ -1219,15 +1219,23 @@ class Broker:
 
                 #modification
                 ####################################################3burası bir client publish ettiğinde çağrılıyor
+                source_session=broadcast["session"]
+                self.logger.debug("------1204 source_session.client_id = %s", source_session.client_id)
+                self.logger.debug("------1205 source_session.session_info.authenticated = %s", source_session.session_info.authenticated)
+                self.logger.debug("------1206 target_session.client_id = %s", target_session.client_id)
+                self.logger.debug("------1207 target_session.session_info.authenticated = %s", target_session.session_info.authenticated)
+                
+                
+                self.logger.debug("1210 topicname type %s", type(broadcast["topic"]))
+                self.logger.debug("1211 topicname %s", broadcast["topic"])
+                self.logger.debug("1212 payload type %s", type(broadcast["data"]))
+                self.logger.debug("1213 payload %s", broadcast["data"])
+
                 handler = self._get_handler(target_session)#target session: subscribe olan clientlar
-                self.logger.debug("1196 handler.session.session_info.client_id: %s", handler.session.session_info.client_id)
-                self.logger.debug("1196 topicname type: %s", type(broadcast["topic"]))
-                self.logger.debug("1196 topicname: %s", broadcast["topic"])
-                self.logger.debug("1196 handler.session.session_info.authenticated: %s", handler.session.session_info.authenticated)
                 publish_topic = broadcast["topic"]
                 publish_message = broadcast["data"]
-                if (handler.session.session_info.authenticated == True):
-                    #self.logger.debug("1205")
+                if (target_session.session_info.authenticated == True and source_session.session_info.authenticated == True):
+                    self.logger.debug("1220 - both source session & destination session are authenticated")
                     topicName = broadcast["topic"]
                     topicName_byte =  force_bytes(topicName)
                     #self.logger.debug("1208")
@@ -1273,22 +1281,36 @@ class Broker:
                     encrypted_payload = encryptor.update(padded_data) + encryptor.finalize()
                     publish_message = encode_data_with_length(encrypted_payload)
 
-                    #self.logger.debug("1250")
                     self.logger.debug("1252 payload: %s", broadcast["data"])
                     self.logger.debug("1253 topic: %s", broadcast["topic"])
 
-                #authenticated değil ise client açık bir şekilde gidiyor, normal yapı encryptsiz bir şekilde devam ediyor
-                task = asyncio.ensure_future(
-                    handler.mqtt_publish(
-                        publish_topic,
-                        publish_message,
-                        qos,
-                        retain=False,
-                    ),
-                )
-                #self.logger.debug("1263")
-                running_tasks.append(task) 
-                #self.logger.debug("1265")
+                    self.logger.debug("1250 publish_topic: %s", publish_topic)
+                    self.logger.debug("1251 publish_message: %s", publish_message)
+                    task = asyncio.ensure_future(
+                        handler.mqtt_publish(
+                            publish_topic,
+                            publish_message,
+                            qos,
+                            retain=False,
+                        ),
+                    )
+                    self.logger.debug("1260")
+                    running_tasks.append(task) 
+                elif (target_session.session_info.authenticated != True and source_session.session_info.authenticated != True):
+                    self.logger.debug("1264 - both source session & destination session are not authenticated")
+                        
+                    task = asyncio.ensure_future(
+                        handler.mqtt_publish(
+                            publish_topic,
+                            publish_message,
+                            qos,
+                            retain=False,
+                        ),
+                    )
+                    self.logger.debug("1274")
+                    running_tasks.append(task) 
+                else : 
+                    self.logger.debug("1286 error - source session & destination session are not both authenticated or both clear")
 
 
     async def _retain_broadcast_message(self, broadcast, qos, target_session):
