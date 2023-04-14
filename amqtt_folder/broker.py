@@ -874,6 +874,14 @@ class Broker:
                                             await self._broadcast_message(   #clientlar publish etmek istediğinde
                                                 client_session, app_message.topic, app_message.data  ##şimdilik burası update edilecek
                                             )
+
+                                            #NON PERMANENT MODIFICATION
+                                            '''
+                                            self.logger.debug("for testing purposes, send badMAC right after broadcast to see if received or not.")
+                                            self.logger.debug("calling badmac")
+                                            await handler.sendBadMAC()
+                                            '''
+
                                         else: 
                                             self.logger.debug("796# MAC OF PAYLOAD IS NOT SAME")
 
