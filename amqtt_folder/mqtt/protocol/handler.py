@@ -205,7 +205,7 @@ class ProtocolHandler:
             )
         self.logger.debug("End messages delivery retries")
 
-    async def mqtt_publish(self, topic, data, qos, retain, ack_timeout=None):
+    async def mqtt_publish(self, topic, data, qos, retain, ack_timeout=None, msgid = None):
         """
         Sends a MQTT publish message and manages messages flows.
         This methods doesn't return until the message has been acknowledged by receiver or timeout occur
@@ -219,7 +219,11 @@ class ProtocolHandler:
         """
 
         if qos in (QOS_1, QOS_2):
-            packet_id = self.session.next_packet_id
+            #packet_id = self.session.next_packet_id
+            if ( msgid == None):
+                packet_id = self.session.next_packet_id
+            else:
+                packet_id = msgid
             if packet_id in self.session.inflight_out:
                 raise AMQTTException(
                     "A message with the same packet ID '%d' is already in flight"
@@ -436,6 +440,7 @@ class ProtocolHandler:
         # while True döngüsünden break ile çıkınca, tüm running tasks ları cancel edip, reader_stop  event ini set ediyor ve sonralıyor 
         # 
         self.logger.debug("%s Starting reader coro" % self.session.client_id)
+        
         running_tasks = collections.deque()
         keepalive_timeout = self.session.keep_alive
         if keepalive_timeout <= 0:
