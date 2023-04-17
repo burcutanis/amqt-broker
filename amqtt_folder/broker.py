@@ -319,12 +319,10 @@ class Broker:
             self.public_key = public_key
             self.x509 = x509
             x509_pem = x509.public_bytes(encoding=serialization.Encoding.PEM)
-            self.logger.debug("X509 CERTIFICIATE OF THE BROKER: %s ", x509_pem)
-            self.logger.debug("X509 PUBLIC KEY OF THE BROKER: %s ", pem2)
-            self.logger.debug("Private key of X509 is read from the certificate")
+         
             self.logger.info("X509 CERTIFICIATE OF THE BROKER: %s ", x509_pem)
             self.logger.info("X509 PUBLIC KEY OF THE BROKER: %s ", pem2)
-            self.logger.info("Private key of X509 is read from the certificate")
+         
 
 
         except:
@@ -724,6 +722,7 @@ class Broker:
                         "Client ID: %s handling subscription" % client_session.client_id
                     )
                     subscriptions = subscribe_waiter.result()
+                    self.logger.info("subscriptions.packet_id: %s",subscriptions["packet_id"])
                     return_codes = []
                     for subscription in subscriptions["topics"]:
 
@@ -880,7 +879,11 @@ class Broker:
                                     self.logger.info("CLIENT: %s, MAC OF TOPIC NAME IS SAME", client_session.client_id,)
                                     
                                     if (topicName == b'choiceToken'):#asks for a choice token here 
-                                        await (handler.sendChoiceToken(app_message.topic, app_message.data))
+                                        quality = app_message.qos
+                                        retain = app_message.publish_packet.retain_flag
+                                        mid = app_message.publish_packet.variable_header.packet_id
+                                        self.logger.info("quality %s:", mid)
+                                        await (handler.sendChoiceToken(app_message.topic, app_message.data, quality, retain, mid))
 
                                     else:
                                         topicName_str = bytes.decode(topicName)
@@ -901,14 +904,15 @@ class Broker:
                                         signature2 = h.finalize()
 
 
-                                        self.logger.info("CLIENT: %s, DECRYPTED PAYLOAD: %s", client_session.client_id, payload)
-                                        self.logger.info("CLIENT: %s, RECEIVED MAC OF PAYLOAD: %s ", client_session.client_id, mac_of_topicName  )
-                                        self.logger.info("CLIENT: %s, CALCULATED MAC OF PAYLOAD: %s ", client_session.client_id, mac_of_payload  )
+                                        
+                                        self.logger.info("CLIENT: %s, RECEIVED MAC OF PAYLOAD: %s ", client_session.client_id, mac_of_payload  )
+                                        self.logger.info("CLIENT: %s, CALCULATED MAC OF PAYLOAD: %s ", client_session.client_id, signature2  )
 
                                         
 
                                         if(mac_of_payload == signature2):
-                                            self.logger.info("CLIENT: %s, OF PAYLOAD IS SAME", client_session.client_id )
+                                            self.logger.info("CLIENT: %s, MAC OF PAYLOAD IS SAME", client_session.client_id )
+                                            self.logger.info("CLIENT: %s, DECRYPTED PAYLOAD (still encrypted with choice token): %s from topic %s", client_session.client_id, payload, topicName)
                                             app_message.data = payload
                                             #self.logger.debug("825# PAYLOAD BROKER.PY: %s", app_message.data)
                                             #self.logger.debug("826# CHOICE TOKEN TOPIC: %s", app_message.topic)
@@ -1304,8 +1308,8 @@ class Broker:
                 publish_message = broadcast["data"]
                 if (target_session.session_info.authenticated == True and source_session.session_info.authenticated == True):
                     self.logger.debug("1220 - both source session & destination session are authenticated")
-                    self.logger.info("####PUBLISH MESSAGE IS GOING TO RELAYED TO CLIENT: %s####", target_session.client_id)
-                    self.logger.info("CLIENT: %s, DECRYPTED VERSION OF THE DATA TO BE SEND %s FROM TOPIC: %s", target_session.client_id, publish_message, publish_topic)
+                    self.logger.info("####PUBLISH MESSAGE IS GOING TO BE RELAYED TO CLIENT: %s####", target_session.client_id)
+                    self.logger.info("CLIENT: %s, DECRYPTED VERSION OF THE DATA TO BE SEND (still encrypted with choice token) %s FROM TOPIC: %s", target_session.client_id, publish_message, publish_topic)
                     topicName = broadcast["topic"]
                     topicName_byte =  force_bytes(topicName)
                     #self.logger.debug("1208")

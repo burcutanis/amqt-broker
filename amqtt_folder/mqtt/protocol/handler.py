@@ -435,8 +435,8 @@ class ProtocolHandler:
         # packet tipi ile ilgili handle_tipi taskını çalıştıryor ve bu task ı running tasks a ekilyor  
         # while True döngüsünden break ile çıkınca, tüm running tasks ları cancel edip, reader_stop  event ini set ediyor ve sonralıyor 
         # 
-        #self.logger.debug("%s Starting reader coro" % self.session.client_id)
-        self.logger.info("Client ID: %s Starting reader coro" % self.session.client_id) #modification
+        self.logger.debug("%s Starting reader coro" % self.session.client_id)
+        
         running_tasks = collections.deque()
         keepalive_timeout = self.session.keep_alive
         if keepalive_timeout <= 0:

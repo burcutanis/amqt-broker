@@ -129,10 +129,11 @@ class BrokerProtocolHandler(ProtocolHandler):
     
     """START: 4 Nisan'da eklendi"""
 
-    async def sendChoiceToken(self, topicnamehex, payload):
+    async def sendChoiceToken(self, topicnamehex, payload, quality, retain, mid):
         self.logger.info("----FUNCTION: PUBLISH MESSAGE IS RECEIVED FROM CLIENT %s FOR REQUESTED CHOICE TOKEN (step 2 of choice token scheme)----" , self.session.client_id)
-        self.logger.info("CLIENT: %s, ENCRYPTED DATA FROM CLIENT TO REQUEST CHOICE TOKEN (step 2 of choice token scheme): %s" , self.session.client_id, payload)
         self.logger.info("CLIENT: %s, ENCRYPTED TOPIC of the 'choiceToken' (step 2 of choice token scheme):  %s "  , self.session.client_id, topicnamehex)
+        self.logger.info("CLIENT: %s, ENCRYPTED DATA FROM CLIENT TO REQUEST CHOICE TOKEN (step 2 of choice token scheme): %s" , self.session.client_id, payload)
+        
         #Decrypt the topic name and learn the topic name
         topicnamebyte = unhexlify(topicnamehex)
         backend = default_backend()
@@ -144,10 +145,14 @@ class BrokerProtocolHandler(ProtocolHandler):
         topicname = unpadded[0:index1]
         macCode = unpadded[index1+4:]
 
+       
+
         
         h = hmac.HMAC(self.session.session_info.session_key, hashes.SHA256())
         h.update(topicname)
         signature = h.finalize()
+        self.logger.info("CLIENT: %s, RECEIVED MAC OF PUBLISHED TOPIC: %s ", self.session.client_id, macCode  )
+        self.logger.info("CLIENT: %s, CALCULATED MAC OF PUBLISHED TOPIC: %s ", self.session.client_id, signature  )
 
         if (signature == macCode):
             self.logger.info("CLIENT: %s, MAC OF THE TOPIC 'choiceToken' IS SAME ", self.session.client_id )
@@ -173,15 +178,21 @@ class BrokerProtocolHandler(ProtocolHandler):
 
             #splitting for subscription requests of multiple topics in one message
             topics_list = payload_topics.split(b'::::')
-            self.logger.debug("topics_list: %s", topics_list)
+            self.logger.info("topics_list: %s", topics_list)
             #self.logger.info("CLIENT: %s, DECRYPTED DATA FROM CLIENT TO REQUEST CHOICE TOKEN %s" , self.session.client_id, topics_list)
 
+            messagex = bytes.decode(payload_topics, 'utf-8') + self.session.client_id + str(quality) + str(retain) + str(mid)
+            self.logger.info("messagex: %s" , messagex )
+
+            message_byte = force_bytes(messagex)
 
             h = hmac.HMAC(self.session.session_info.session_key, hashes.SHA256())
-            h.update(payload_topics)
+            h.update(message_byte)
             signature = h.finalize()
-            self.logger.info("CLIENT: %s, MAC OF PAYLOAD %s" , self.session.client_id, signature)
-            
+           
+            self.logger.info("CLIENT: %s, RECEIVED MAC OF PAYLOAD: %s ", self.session.client_id, mac_unchecked  )
+            self.logger.info("CLIENT: %s, CALCULATED MAC OF PAYLOAD: %s ", self.session.client_id, signature  )
+
             
             
 
@@ -199,7 +210,7 @@ class BrokerProtocolHandler(ProtocolHandler):
 
                     topicName_str = bytes.decode(topicName)
                     rows = getStatementFromChoiceTokens(topicName_str)
-                    self.logger.info("CLIENT: %s, TOPIC FOR WHICH CHOICE TOKEN IS REQUESTED: %s ", self.session.client_id, topicName_str )
+                    self.logger.info("CLIENT: %s, DECRYPTED TOPIC FOR WHICH CHOICE TOKEN IS REQUESTED: %s ", self.session.client_id, topicName_str )
                     if (rows == None or len(rows) == 0 or rows == []): 
                         choiceToken = secrets.token_hex() #256 bitlik bir token oluşturuyor
                         pushRowToChoiceTokenTable(choiceToken, topicName_str)
@@ -254,7 +265,9 @@ class BrokerProtocolHandler(ProtocolHandler):
                 self.logger.debug(payloadByte)
                 
                 self.logger.debug("alldatabeforepublish:%s", payloadByte)
+                self.logger.info("CLIENT: %s, ENCRYPTED TOPIC NAME: %s ", self.session.client_id, topicNameEncryptedHex )
                 self.logger.info("CLIENT: %s, ENCRYPTED PAYLOAD SEND FOR CHOICE TOKEN: %s ", self.session.client_id, payloadByte  )
+               
                 await self.mqtt_publish(topicNameEncryptedHex, data = encode_data_with_length(payloadByte), qos=2, retain= False )
                 self.logger.info("REQUESTED CHOICE TOKEN IS SENT TO CLIENT (step 4 of choice token schema): %s ", self.session.client_id  )
 
@@ -278,7 +291,7 @@ class BrokerProtocolHandler(ProtocolHandler):
     async def send_publish_step_8(self):
         try:
             
-            self.logger.info("----FUNCTION: PREPARATION OF THE PUBLISH MESSAGE AT STEP 8 OF DH for %s----" , self.session.client_id)
+            self.logger.info("----FUNCTION: PREPARATION OF THE PUBLISH MESSAGE AT STEP 8 OF DH FOR CLIENT:  %s----" , self.session.client_id)
             nonce2 = secrets.token_urlsafe()
             self.session.session_info.n2 = bytes(nonce2, 'UTF-8')
            
@@ -286,8 +299,7 @@ class BrokerProtocolHandler(ProtocolHandler):
             value_str = nonce2 + "::::" + self.session.client_id
             value = force_bytes(value_str)
             dh1_shared = self.session.session_info.dh_shared_key
-            sessionkey = force_bytes(base64.urlsafe_b64encode(force_bytes(dh1_shared))[:32])
-            self.session.session_info.session_key = sessionkey
+            sessionkey = self.session.session_info.session_key
 
             backend = default_backend()
             encryptor = Cipher(algorithms.AES(sessionkey), modes.ECB(), backend).encryptor()
@@ -328,7 +340,7 @@ class BrokerProtocolHandler(ProtocolHandler):
                 nonce1 = secrets.token_urlsafe()
                 self.session.session_info.n1 =  bytes(nonce1, 'UTF-8')
                 
-                self.logger.info("FOR CLIENT: %s, NONCE 1: %s ",  self.session.client_id, dh1_public)
+                self.logger.info("CLIENT: %s, NONCE 1: %s ",  self.session.client_id, nonce1)
 
                 client_ID_byte = bytes(self.session.client_id, 'UTF-8')
                 message = dh1_public + b'::::' + self.session.session_info.n1 + b'::::' + client_ID_byte #nonce added
@@ -340,7 +352,8 @@ class BrokerProtocolHandler(ProtocolHandler):
                         ),
                         hashes.SHA256()
                     )
-                self.logger.info("FOR CLIENT: %s, RSA SIGN: %s  ",self.session.client_id,  signature)
+                
+                self.logger.info("CLIENT: %s, RSA SIGN: %s  ",self.session.client_id,  signature)
                 
                 
 
@@ -403,7 +416,7 @@ class BrokerProtocolHandler(ProtocolHandler):
                 self.logger.info("CLIENT: %s, X509 CLIENT CERTIFICATE:  %s",self.session.client_id, client_x509_pem)
                 self.logger.info("CLIENT: %s, CLIENT DH PUBLIC KEY: %s",self.session.client_id, client_dh_public_key)
                 self.logger.info("CLIENT: %s, CLIENT RSA SIGN: %s", self.session.client_id, client_rsa_sign)
-                self.logger.info("CLIENT: %s, NONCE: %s",self.session.client_id, nonce)
+                self.logger.info("CLIENT: %s, RECEIVED NONCE 1: %s",self.session.client_id, nonce)
 
                 client_x509_bytes = bytes(client_x509_pem)
                 client_x509 = load_pem_x509_certificate(client_x509_bytes )
@@ -424,7 +437,7 @@ class BrokerProtocolHandler(ProtocolHandler):
                 client_rsa_sign_bytes = bytes(client_rsa_sign)
 
                 
-                self.logger.info(" CLIENT: %s, MESSAGE IN RSA SIGN: %s", self.session.client_id, message_bytes)
+                
 
                 self.session.session_info.key_establishment_state = 6
 
@@ -448,7 +461,10 @@ class BrokerProtocolHandler(ProtocolHandler):
                         self.logger.info("CLIENT: %s, Nonces are matching, sign was verified, will send publish step 8.",  self.session.client_id)                            
                         self.session.session_info.dh_shared_key = dh1_shared
                         
-                        self.logger.info("SHARED KEY %s BETWEEN BROKER AND CLIENT: %s", dh1_shared, self.session.client_id)
+                        self.logger.info("CLIENT: %s, DH SHARED KEY: %s", self.session.client_id, dh1_shared)
+                        sessionkey = force_bytes(base64.urlsafe_b64encode(force_bytes(dh1_shared))[:32])
+                        self.session.session_info.session_key = sessionkey
+                        self.logger.info("CLIENT: %s, 256 BIT SESSION KEY DERIVED FROM DH SHARED KEY: %s", self.session.client_id, sessionkey)
                         await self.send_publish_step_8()
                     else:
 
@@ -515,7 +531,8 @@ class BrokerProtocolHandler(ProtocolHandler):
                 current_client_id = nonce3_clientID[index2+4:] #CORRECT VERSION 
                 
                 self.logger.info("CLIENT ID RECEIVED %s AND SESSION CLIENT ID : %s", current_client_id, self.session.client_id)
-                self.logger.info("NONCE 2 RECEIVED %s NONCE 2 SEND : %s", sent_nonce2, self.session.session_info.n2)
+                self.logger.info("CLIENT: %s, NONCE 2 RECEIVED %s NONCE 2 SEND : %s", self.session.client_id, sent_nonce2, self.session.session_info.n2)
+                self.logger.info("CLIENT: %s, NONCE 3 RECEIVED %s:", self.session.client_id, coming_nonce3)
              
                 if current_client_id == force_bytes(self.session.client_id) and sent_nonce2 == force_bytes(self.session.session_info.n2):
                     
