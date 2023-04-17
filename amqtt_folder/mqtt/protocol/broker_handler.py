@@ -129,7 +129,46 @@ class BrokerProtocolHandler(ProtocolHandler):
     
     """START: 4 Nisan'da eklendi"""
 
+    #bilgesu modification
+    async def sendBadMAC(self):
+
+        message_str = self.session.session_info.client_id
+        message = bytes(message_str, 'utf-8')
+
+        h = hmac.HMAC(self.session.session_info.session_key, hashes.SHA256())
+        h.update(message)
+        signature = h.finalize()
+
+        topicName = message + b'::::' + signature
+
+        backend = default_backend() 
+        encryptor = Cipher(algorithms.AES(self.session.session_info.session_key), modes.ECB(), backend).encryptor()
+        padder = padding2.PKCS7(algorithms.AES(self.session.session_info.session_key).block_size).padder()
+        padded_data = padder.update(topicName) + padder.finalize()
+        topicNameEncryptedByte = encryptor.update(padded_data) + encryptor.finalize()
+        topicNameEncryptedHex = topicNameEncryptedByte.hex()
+
+
+        payload_send = b''
+        #also add dummy mac
+        payload_send += bytes(self.session.session_info.client_id, 'utf-8') + b'::::' + b'signVerifyFailed' + b'::::' + b'MACReplacer'
+
+
+        encryptor = Cipher(algorithms.AES(self.session.session_info.session_key), modes.ECB(), backend).encryptor()
+        padder = padding2.PKCS7(algorithms.AES(self.session.session_info.session_key).block_size).padder()
+        padded_data = padder.update(payload_send) + padder.finalize()
+        payloadByte = encryptor.update(padded_data) + encryptor.finalize()
+        self.logger.debug("alldatabeforepublish: %s", payloadByte)
+
+        await self.mqtt_publish(topicNameEncryptedHex, data = encode_data_with_length(payloadByte), qos=2, retain= False)
+
+    #bilgesu: modification
+
+
+
     async def sendChoiceToken(self, topicnamehex, payload, quality, retain, mid):
+    
+    
         self.logger.info("----FUNCTION: PUBLISH MESSAGE IS RECEIVED FROM CLIENT %s FOR REQUESTED CHOICE TOKEN (step 2 of choice token scheme)----" , self.session.client_id)
         self.logger.info("CLIENT: %s, ENCRYPTED TOPIC of the 'choiceToken' (step 2 of choice token scheme):  %s "  , self.session.client_id, topicnamehex)
         self.logger.info("CLIENT: %s, ENCRYPTED DATA FROM CLIENT TO REQUEST CHOICE TOKEN (step 2 of choice token scheme): %s" , self.session.client_id, payload)
@@ -164,9 +203,6 @@ class BrokerProtocolHandler(ProtocolHandler):
             self.logger.debug("unpadded: %s", unpadded)
             
             
-           
-          
-           
 
             indexMAC = unpadded.rfind(b'::::')
             mac_unchecked = unpadded[indexMAC+4:]
@@ -286,14 +322,12 @@ class BrokerProtocolHandler(ProtocolHandler):
                 
             else:
                 self.logger.info("CLIENT: %s, MAC OF THE PAYLOAD IS DIFFERENT", self.session.client_id )
+                self.logger.debug("sendBadMAC called")
+                await self.sendBadMAC()
         else:
             self.logger.info("CLIENT: %s, MAC OF THE TOPIC NAME IS DIFFERENT", self.session.client_id )
-
-
-
-            
-                
-            
+            self.logger.debug("sendBadMAC called")
+            await self.sendBadMAC()
 
  
     """END: 4 Nisan'da eklendi"""

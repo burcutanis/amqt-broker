@@ -929,46 +929,29 @@ class Broker:
                                             await self._broadcast_message(   #clientlar publish etmek istediğinde
                                                 client_session, app_message.topic, app_message.data  ##şimdilik burası update edilecek
                                             )
+
+                                            #NON PERMANENT MODIFICATION
+                                            '''
+                                            self.logger.debug("for testing purposes, send badMAC right after broadcast to see if received or not.")
+                                            self.logger.debug("calling badmac")
+                                            await handler.sendBadMAC()
+                                            '''
+
                                         else: 
                                             self.logger.info("CLIENT: %s, OF PAYLOAD IS  NOT SAME", client_session.client_id )
 
-
-                                            prepared_data = client_session.client_id + "::::" + "signVerifyFailed"
-
-
-                                            backend = default_backend()
-                                            decryptor = Cipher(algorithms.AES(client_session.session_info.session_key), modes.ECB(), backend).decryptor()
-                                            padder = padding2.PKCS7(algorithms.AES(client_session.session_info.session_key).block_size).unpadder()
-                                            decrypted_data = decryptor.update(prepared_data) 
-                                            unpadded = padder.update(decrypted_data) + padder.finalize()
-
-                                            prepared_data_encrypted = unpadded
-
                                             #bilgesu: modification
-                                            await (self._broadcast_message(client_session, client_session.client_id, data=prepared_data_encrypted))
-
+                                            self.logger.debug("sendBadMAC called")
+                                            await handler.sendBadMAC()
+                                            #bilgesu: modification
 
                                 else: 
                                     self.logger.debug("broker.py, 897: MAC OF TOPIC NAME IS NOT SAME")  
 
-
-                                    prepared_data = client_session.client_id + "::::" + "signVerifyFailed"
-
-                                    self.logger.debug("preapred data: %s", prepared_data)
-
-                                    backend = default_backend()
-                                    decryptor = Cipher(algorithms.AES(client_session.session_info.session_key), modes.ECB(), backend).decryptor()
-                                    padder = padding2.PKCS7(algorithms.AES(client_session.session_info.session_key).block_size).unpadder()
-                                    decrypted_data = decryptor.update(prepared_data) 
-                                    unpadded = padder.update(decrypted_data) + padder.finalize()
-
-                                    prepared_data_encrypted = unpadded
-
                                     #bilgesu: modification
-                                    await (handler.mqtt_publish(client_session, client_session.client_id, data=prepared_data_encrypted))
-                                    #bilgesu:modification
-                                    
-
+                                    self.logger.debug("sendBadMAC called")
+                                    await handler.sendBadMAC()
+                                    #bilgesu: modification
 
                             else:
                                 await self._broadcast_message(   #clientlar publish etmek istediğinde
