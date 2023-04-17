@@ -65,5 +65,19 @@ sublar için aynı token bütük sıkıntı yaratır, sibling topiclere erişim 
 
 - client subscribe atarken de sendBadMAC gerekebilir, gereken her yer eklemek lazım
 
+- # a subscribe olursa ne oluyor dene 
+- sıkıntı yoksa topic_name/# a subscribe olursa önce liste hazırlanmalı var olan topic isimlerinden - bu nereden alınacak????? nerede tutulduğunu bul
 
-------düzeltilecek şeyler------
+
+- topic içinde "#" kabul edilmiyor, bu check nerede yapılıyor bulmak lazım.
+
+
+
+deneme4.py "#"a subs oluyor, ama "deneme#deneme" olmadı
+var olan topicler nereden geliyor o zaman? eski topicler duuyor mu broker celose open olduktan sonr abu broker sessionında publish edilen ya da önceden subs olunun topicler mi var sadece kontol edilmeli
+brokerın içindeki default subscribe receive mekanizmasına bakılmalı özellikle # nasıl davranıyor diye default halinde  
+amqtt #i desteklemiyor da olabilir implementationun içine bakılmalı.
+bizim versiyonda "deneme#deneme" çalıştı, encrypt edilip hexlenince sorun olmadığı için olabilir
+bizim versiyon "#"a da subs oluyor ama herhangi bir topic gibi davranıyor, ayrıca bir filtre ya da kontol mekanizması eklenmeli ct istemeden ve maclenip encryptenleden önce
+
+
