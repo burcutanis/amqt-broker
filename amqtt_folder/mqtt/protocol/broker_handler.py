@@ -234,6 +234,8 @@ class BrokerProtocolHandler(ProtocolHandler):
                 message = bytes(message_str, 'utf-8')
                 self.logger.info("----FUNCTION: PREPARATION OF PUBLISH MESSAGE FOR CLIENT %s FOR REQUESTED CHOICE TOKEN (step 4 of choice token scheme)----" , self.session.client_id)
 
+                
+
                 h = hmac.HMAC(self.session.session_info.session_key, hashes.SHA256())
                 h.update(message)
                 signature = h.finalize()
@@ -249,8 +251,17 @@ class BrokerProtocolHandler(ProtocolHandler):
 
                 payload_send_without_last_divider = payload_send[0 : len(payload_send)-4]
 
+                msgid = self.session.next_packet_id
+                msgid_str = str(msgid)
+                qos = 1
+                retainFlag = False
+                message_str = str(qos) + str(retainFlag)
+                message_bytes = payload_send_without_last_divider  + force_bytes(message_str)+ force_bytes(msgid_str)
+                self.logger.info("message_bytes: %s ", message_bytes)
+
+
                 h = hmac.HMAC(self.session.session_info.session_key, hashes.SHA256())
-                h.update(payload_send_without_last_divider)
+                h.update(message_bytes)
                 signature = h.finalize()
 
                 payload_mac_merged = payload_send + signature 
@@ -267,8 +278,9 @@ class BrokerProtocolHandler(ProtocolHandler):
                 self.logger.debug("alldatabeforepublish:%s", payloadByte)
                 self.logger.info("CLIENT: %s, ENCRYPTED TOPIC NAME: %s ", self.session.client_id, topicNameEncryptedHex )
                 self.logger.info("CLIENT: %s, ENCRYPTED PAYLOAD SEND FOR CHOICE TOKEN: %s ", self.session.client_id, payloadByte  )
+              
                
-                await self.mqtt_publish(topicNameEncryptedHex, data = encode_data_with_length(payloadByte), qos=2, retain= False )
+                await self.mqtt_publish(topicNameEncryptedHex, data = encode_data_with_length(payloadByte), qos=1, retain= False, msgid=msgid )
                 self.logger.info("REQUESTED CHOICE TOKEN IS SENT TO CLIENT (step 4 of choice token schema): %s ", self.session.client_id  )
 
                 

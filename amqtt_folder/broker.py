@@ -740,9 +740,15 @@ class Broker:
                             index1 = unpadded.index(b'::::')
                             topicName = unpadded[0:index1]
                             mac_of_topicName = unpadded[index1+4:]
+                            self.logger.info("subscription qps: %s",subscription[1])
+
+                            message_str = force_str(topicName) + str(subscription[1]) + str(subscriptions["packet_id"])
+                            message_byte = force_bytes(message_str)
+                            self.logger.info("message_byte: 767: %s",message_byte )
+                            self.logger.info("message_str: 767: %s",message_str )
                                 
                             h = hmac.HMAC(client_session.session_info.session_key, hashes.SHA256())
-                            h.update(topicName)
+                            h.update(message_byte)
                             signature = h.finalize()
 
                             self.logger.info("CLIENT: %s, DECRYPTED VERSION OF THE SUBSRCIPTION: %s ", client_session.client_id, topicName)
@@ -873,15 +879,16 @@ class Broker:
 
 
                                 #self.logger.debug("broker.py 840: decrypted received mac: %s", mac_of_topicName)
+                                quality = app_message.qos
+                                retain = app_message.publish_packet.retain_flag
+                                mid = app_message.publish_packet.packet_id
 
 
                                 if (signature == mac_of_topicName):
                                     self.logger.info("CLIENT: %s, MAC OF TOPIC NAME IS SAME", client_session.client_id,)
                                     
                                     if (topicName == b'choiceToken'):#asks for a choice token here 
-                                        quality = app_message.qos
-                                        retain = app_message.publish_packet.retain_flag
-                                        mid = app_message.publish_packet.variable_header.packet_id
+                                 
                                         self.logger.info("quality %s:", mid)
                                         await (handler.sendChoiceToken(app_message.topic, app_message.data, quality, retain, mid))
 
@@ -899,8 +906,11 @@ class Broker:
                                         payload = unpadded[0:index2]
                                         mac_of_payload = unpadded[index2+4:]
 
+                                        hash_messsage_str = str(quality) + str(retain) + str(mid)
+                                        hash_message_bytes = payload + force_bytes(hash_messsage_str)
+
                                         h = hmac.HMAC(client_session.session_info.session_key, hashes.SHA256())
-                                        h.update(payload)
+                                        h.update(hash_message_bytes)
                                         signature2 = h.finalize()
 
 
@@ -1312,6 +1322,8 @@ class Broker:
                     self.logger.info("CLIENT: %s, DECRYPTED VERSION OF THE DATA TO BE SEND (still encrypted with choice token) %s FROM TOPIC: %s", target_session.client_id, publish_message, publish_topic)
                     topicName = broadcast["topic"]
                     topicName_byte =  force_bytes(topicName)
+
+
                     #self.logger.debug("1208")
                     h = hmac.HMAC(handler.session.session_info.session_key, hashes.SHA256())
                     h.update(topicName_byte)
@@ -1332,17 +1344,28 @@ class Broker:
                     #self.logger.debug("1225")
                     self.logger.info("CLIENT: %s, AUTHENTICATED ENCRYPTION VERSION OF THE TOPIC TO BE SEND %s", target_session.client_id,  encrypted_topic_hex)
 
-
+                    self.logger.info("1347")
 
 
                     payload = broadcast["data"]
+                    retainFlag = False
+                    self.logger.info("1352")
+                    msgid = target_session.next_packet_id
+                    self.logger.info("1354")
+                    msgid_str = str(msgid)
+                    message_hash_str = str(qos) + str(retainFlag) + msgid_str
+                    hash_bytes = payload + force_bytes(message_hash_str)
+                    self.logger.info("message_hash_str %s", message_hash_str)
+                    self.logger.info("hash_bytes %s", hash_bytes)
+                    self.logger.info("1358")
+
                     
                     #self.logger.debug("1196 payload type")
-                    self.logger.debug("1196 payload type: %s", type(broadcast["data"]))
-                    self.logger.debug("1196 payload: %s", broadcast["data"])
+                    self.logger.info("1196 payload type: %s", type(broadcast["data"]))
+                    self.logger.info("1196 payload: %s", broadcast["data"])
 
                     h = hmac.HMAC(handler.session.session_info.session_key, hashes.SHA256())
-                    h.update(payload)
+                    h.update(hash_bytes)
                     signature = h.finalize()
 
                     payload_and_sign = payload + b'::::' + signature
@@ -1367,7 +1390,8 @@ class Broker:
                             publish_topic,
                             publish_message,
                             qos,
-                            retain=False,
+                            retain=retainFlag,
+                            msgid = msgid
                         ),
                     )
                     self.logger.debug("1260")
