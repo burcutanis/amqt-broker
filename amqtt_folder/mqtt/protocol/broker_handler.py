@@ -629,17 +629,67 @@ class BrokerProtocolHandler(ProtocolHandler):
 
     async def handle_unsubscribe(self, unsubscribe: UnsubscribePacket):
 
+
+        self.logger.info("WILL HANDLE UNSUBSCRIBE NOW")
+
         #assuming topic names
-        payload = unsubscribe.payload
-        
-        #topics, mac(topics)
+        topics_list = unsubscribe.payload.topics
+
+        topics_decoded_list = []
+
+        if self.session.session_info.authenticated:
+            continue_decrypt = True
+            for topic_mac_encrypted_hex in topics_list:
+                if continue_decrypt:
+
+                    topicn_mac_enc_byte = unhexlify(topic_mac_encrypted_hex)
+                    backend = default_backend()
+                    decryptor = Cipher(algorithms.AES(self.session.session_info.session_key), modes.ECB(), backend).decryptor()
+                    padder = padding2.PKCS7(algorithms.AES(self.session.session_info.session_key).block_size).unpadder()
+                    decrypted_data = decryptor.update(topicn_mac_enc_byte) 
+                    unpadded = padder.update(decrypted_data) + padder.finalize()
+
+                    index1 = unpadded.index(b'::::')
+                    topic_name = unpadded[0:index1]
+                    mac_unchecked = unpadded[index1+4:]
+
+                    qos = str(1)
+
+                    topic_concat_qos = topic_name + b'::::' + bytes(qos, 'utf-8')
+
+                    h = hmac.HMAC(self.session.session_info.session_key, hashes.SHA256())
+                    h.update(topic_concat_qos)
+                    mac_duplicate_to_check = h.finalize()
+                    
+                    if (mac_duplicate_to_check == mac_unchecked):
+                        self.logger.debug("MAC of this topic is same")
+                        self.logger.info("CLIENT: %s, MAC OF THIS TOPIC (%s) IS SAME", self.session.client_id, topic_name)
 
 
-        #decrypt, get id and topics
+                        topics_decoded_list.append(bytes.decode(topic_name, 'utf-8'))
+                    else:
+                        continue_decrypt = False
+                        self.logger.info("CLIENT: %s, MAC OF THIS TOPIC (%s) IS NOT SAME", self.session.client_id, topic_name)
+                        await self.sendBadMAC()
+
+
+                else:
+                    self.logger.debug("MAC of this topic is not the same")
+                    self.logger.info("CLIENT: %s, MAC OF THIS TOPIC (%s) IS NOT THE SAMe, WONT UBSUBSCRIBE THE CLIENT", self.session.client_id, topic_name)
+                    #send bad mac if the macs do not match in order to inform the client
+                    await self.sendBadMAC()
+
+        list_to_set_unsub = []
+        if self.session.session_info.authenticated:
+            if continue_decrypt:
+                list_to_set_unsub = topics_decoded_list
+        else:
+            list_to_set_unsub = topics_list
+
 
         unsubscription = {
             "packet_id": unsubscribe.variable_header.packet_id,
-            "topics": unsubscribe.payload.topics, #list
+            "topics": list_to_set_unsub
         }
         await self._pending_unsubscriptions.put(unsubscription)
 

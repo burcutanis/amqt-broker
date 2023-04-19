@@ -701,6 +701,8 @@ class Broker:
                     )
                     unsubscription = unsubscribe_waiter.result()
                     for topic in unsubscription["topics"]:
+
+                        self.logger.info("WILL DELETE SUBSCRIPTON OF %s IN TOPIC %s", client_session, topic)
                         self._del_subscription(topic, client_session)
                         await self.plugins_manager.fire_event(
                             EVENT_BROKER_CLIENT_UNSUBSCRIBED,
