@@ -81,3 +81,9 @@ bizim versiyonda "deneme#deneme" çalıştı, encrypt edilip hexlenince sorun ol
 bizim versiyon "#"a da subs oluyor ama herhangi bir topic gibi davranıyor, ayrıca bir filtre ya da kontol mekanizması eklenmeli ct istemeden ve maclenip encryptenleden önce
 
 
+
+
+
+
+broker handle_unsubscribea ekleme lazım sessşon key ile decrypt edip mac kontolu
+sonra ack at
