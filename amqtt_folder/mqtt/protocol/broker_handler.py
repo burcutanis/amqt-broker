@@ -675,7 +675,7 @@ class BrokerProtocolHandler(ProtocolHandler):
 
                 else:
                     self.logger.debug("MAC of this topic is not the same")
-                    self.logger.info("CLIENT: %s, MAC OF THIS TOPIC (%s) IS NOT THE SAMe, WONT UBSUBSCRIBE THE CLIENT", self.session.client_id, topic_name)
+                    self.logger.info("CLIENT: %s, MAC OF THIS TOPIC (%s) IS NOT THE SAME, WONT UNSUBSCRIBE THE CLIENT", self.session.client_id, topic_name)
                     #send bad mac if the macs do not match in order to inform the client
                     await self.sendBadMAC()
 
