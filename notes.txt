@@ -26,48 +26,18 @@ key establishment bittikten sonra alakalı subscriptionu silinmeli gereksiz yer 
 (bu gerekli mi?)
 
 
-maceler matchlemezse connection drop?
-session keyi olan authenticated bir client yanlış mac ederse client komple atılmalı mı yoksa choşce token kısmı sıfırdan mı başlamalı?
-
-
 light/# şeklinde gelirse bütün subtopiclerin choiceTokenları return edilmeli
 sublar için aynı token bütük sıkıntı yaratır, sibling topiclere erişim sağlar
 
 ------YAPILACAKLAR------
 
-- flagker eklenecek
-
-- macin içinde flagler yok
-
 - sesionda receive edilen mesajların databasede tutulması
-
-- client tarafında unsubscribea encrypt eklenmeli
-
-- look for the structure of unsubscribe messages and topics field of the payload
-
-- unsubscribe iki tarafta da yapılmalı
-
-- client tarafı birden fazla topic adı yollarken ve multiple choiceToken receive
-
-- else caselerinde disconnect olmalı mı
 
 - encapsulation en sonra kalıyor
 
-- connection_class_choicetokenı kullanıyor muyuz ona ögre loglar düzenlenebilir
-
-- gereken flagler: dupFlag, QoS, retainFlag, packetIDentifier
-
-- client id de eklenebilir ama gerek var mı
-
-- publish atılırken de macler eşlemeyebilir, client bilgilendirilmeli, publisher listen olmalı bu konuda, bunun için client_connection_classa ekleme yapmak lazım
-
-- eğer çoklu subs durumunda sadece bir topic maci bozuksa ne yapılmalı? hepsi mi engellenmeli yoksa sadece bir tnaesi mi?
-
-- client subscribe atarken de sendBadMAC gerekebilir, gereken her yer eklemek lazım
-
 - # a subscribe olursa ne oluyor dene 
-- sıkıntı yoksa topic_name/# a subscribe olursa önce liste hazırlanmalı var olan topic isimlerinden - bu nereden alınacak????? nerede tutulduğunu bul
 
+- sıkıntı yoksa topic_name/# a subscribe olursa önce liste hazırlanmalı var olan topic isimlerinden - bu nereden alınacak????? nerede tutulduğunu bul
 
 - topic içinde "#" kabul edilmiyor, bu check nerede yapılıyor bulmak lazım.
 
@@ -83,7 +53,24 @@ bizim versiyon "#"a da subs oluyor ama herhangi bir topic gibi davranıyor, ayr�
 
 
 
+********************************************************************
+ENCAPSULATION
+
+sadece ackler için lazım
+en sonuna zaten mac eklenmeli ama en başına da 0 ya da 1 şeklinde encapsulation olup olmadığını anlamak için bir identifier flag gerekli
+
+çünkü default halinde bu mac kısmı bulunmayacak, iki taraf da default halide mac ile uğraşmamalı error alır
+
+0 -> mac yok 
+encapsulated packet: 0 | ack_paketi
+
+1 -> mac var
+encapsulated packet: 1 | ack_paketi | mac_signature
+
+broker tarafında daha tricky olabilir işlemler
 
 
-broker handle_unsubscribea ekleme lazım sessşon key ile decrypt edip mac kontolu
-sonra ack at
+broker tarafında ackler için direkt class methodu olarak build var, ya classa field eklenecek ya da variable headerın başına ilk byte olarak 1 byte eklenecek 0 ya da 1 olarak mac var/yoku göstermek için
+ayrıca mac dite bir field da gerekebilir, normal paketler için boş bırakılır ama yine de orada bulunması gerkiyor
+çok fazla yerde değişiklik gerekebilir, ack paketi classının geçtiği he ryeri kontol etmek lazım emin olmak için
+********************************************************************
