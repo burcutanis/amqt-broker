@@ -702,7 +702,14 @@ class BrokerProtocolHandler(ProtocolHandler):
         return unsubscription
 
     async def mqtt_acknowledge_subscription(self, packet_id, return_codes):
-        suback = SubackPacket.build(packet_id, return_codes) ############################################33
+
+        #bilgesu: modification
+        if self.session.session_info.authenticated == True: 
+            suback_yedek = SubackPacket.build(packet_id, return_codes, self.session.session_info.session_key) #build the packet with the signed version
+        self.logger.info("signature of suback packet %s:", suback_yedek.signature)
+        #bilgesu: modification end
+
+        suback = SubackPacket.build(packet_id, return_codes) #build the packet in its default version
         await self._send_packet(suback)
 
     async def mqtt_acknowledge_unsubscription(self, packet_id):

@@ -12,6 +12,7 @@ from amqtt_folder.mqtt.packet import (
 from amqtt_folder.errors import AMQTTException, NoDataException
 from amqtt_folder.adapters import ReaderAdapter
 from amqtt_folder.codecs import bytes_to_int, int_to_bytes, read_or_raise
+from cryptography.hazmat.primitives import hashes, hmac
 
 
 class SubackPayload(MQTTPayload):
@@ -62,11 +63,15 @@ class SubackPacket(MQTTPacket):
     VARIABLE_HEADER = PacketIdVariableHeader
     PAYLOAD = SubackPayload
 
+    #bilgesu: modification
+    SIGNATURE = MQTTVariableHeader
+
     def __init__(
         self,
         fixed: MQTTFixedHeader = None,
         variable_header: PacketIdVariableHeader = None,
         payload=None,
+        signature: MQTTVariableHeader = None
     ):
         if fixed is None:
             header = MQTTFixedHeader(SUBACK, 0x00)
@@ -81,9 +86,25 @@ class SubackPacket(MQTTPacket):
         super().__init__(header)
         self.variable_header = variable_header
         self.payload = payload
+        self.signature = signature
 
     @classmethod
     def build(cls, packet_id, return_codes):
         variable_header = cls.VARIABLE_HEADER(packet_id)
         payload = cls.PAYLOAD(return_codes)
         return cls(variable_header=variable_header, payload=payload)
+    
+    #bilgesu: modification
+    @classmethod
+    def build(cls, packet_id, return_codes, client_unique_session_key):
+
+        variable_header = cls.VARIABLE_HEADER(packet_id)
+        payload = cls.PAYLOAD(return_codes)
+
+
+        h = hmac.HMAC(client_unique_session_key, hashes.SHA256())
+        h.update(packet_id)
+        mac_signature = h.finalize()
+
+
+        return cls(variable_header=variable_header, payload=payload, signature=mac_signature) #examine what cls is exactly
