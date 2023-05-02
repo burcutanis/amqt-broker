@@ -762,6 +762,7 @@ class Broker:
 
                               
                                 self.logger.info("CLIENT: %s, MAC OF THE SUBSCRIBED TOPIC IS THE SAME", client_session.client_id)
+
                                 
 
                                 topicName_str = bytes.decode(topicName)
@@ -770,6 +771,8 @@ class Broker:
                                 subscription = tuple(my_list)
                                 #self.logger.debug("#broker.py, 727: SUBSCRIPTION %s", subscription)
                                 if (subscription[0] != client_session.client_id):
+                                    if ('+' in topicName_str or '#' in topicName_str):
+                                        await (handler.sendChoiceTokenWildDB(topicName))
                                     result = await self.add_subscription(
                                         subscription, client_session
                                         )
@@ -891,7 +894,7 @@ class Broker:
                                     
                                     if (topicName == b'choiceToken'):#asks for a choice token here 
                                  
-                                        self.logger.info("quality %s:", mid)
+                                        self.logger.info("quality %s:", quality)
                                         await (handler.sendChoiceToken(app_message.topic, app_message.data, quality, retain, mid))
 
                                     else:
@@ -1268,6 +1271,7 @@ class Broker:
             for (target_session, qos) in subscriptions:
                 qos = broadcast.get("qos", qos)
 
+
                 # Retain all messages which cannot be broadcasted
                 # due to the session not being connected
                 if target_session.transitions.state != "connected":
@@ -1303,6 +1307,15 @@ class Broker:
                 publish_message = broadcast["data"]
                 if (target_session.session_info.authenticated == True and source_session.session_info.authenticated == True):
                     self.logger.debug("1220 - both source session & destination session are authenticated")
+
+                    value = target_session.session_info.subscribed_topics.get(publish_topic,"0")   # 2may2023
+                    self.logger.debug("1309 - subscribed_topics(publish_topic,None) value = %s ", value)
+                    if (value == "0" ) :
+                        target_session.session_info.subscribed_topics[publish_topic] = "1"
+                        value = target_session.session_info.subscribed_topics.get(publish_topic,0)
+                        self.logger.debug("1313 - subscribed_topics(publish_topic,None) value = %s ", value)
+                        await ( handler.sendChoiceTokenWildcards(publish_topic) )
+ 
                     self.logger.info("####PUBLISH MESSAGE IS GOING TO BE RELAYED TO CLIENT: %s####", target_session.client_id)
                     self.logger.info("CLIENT: %s, DECRYPTED VERSION OF THE DATA TO BE SEND (still encrypted with choice token) %s FROM TOPIC: %s", target_session.client_id, publish_message, publish_topic)
                     topicName = broadcast["topic"]

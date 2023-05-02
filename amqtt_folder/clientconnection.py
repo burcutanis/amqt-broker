@@ -24,6 +24,7 @@ class ClientConnection: #session-based class, containig information about the cu
         self.disconnect_flag = False
         self.dh_shared_key = None
         self.authenticated = False
+        self.subscribed_topics = {}
 
 
 
@@ -353,4 +354,49 @@ def getStatementFromChoiceTokens(topicName):
     
 
 
-#MODIFICATION END: 6 NİSAN
+
+#MODIFICATION END: 6 NISAN
+
+def getStatementFromWildChoiceTokens(topicName):
+    records = None
+
+    mydb = mysql.connector.connect(
+        host="127.0.0.1",
+        user="root",
+        password=""
+    ) 
+    mycursor = mydb.cursor()
+
+    try:
+        mycursor.execute("USE {}".format("brokerside"))
+    except Exception as e:
+        print("\n", e.args)
+        #self.logger.debug("\n", e.args)
+
+    xtopic = topicName + "%"
+    statement = "SELECT topicName, choiceToken FROM choiceTokens WHERE topicName LIKE %s  "
+    values = (xtopic,)
+
+    """
+
+    statement = "SELECT topicName, choiceToken FROM choiceTokens WHERE topicName LIKE topicName = %s%"
+    values = (topicName,)
+    SET @topicName = 'light';
+    SELECT * FROM `choicetokens` WHERE topicName LIKE CONCAT ( @topicName, "%")
+    """
+   
+
+    try:
+        mycursor.execute(statement, values)
+        success = True
+        records = mycursor.fetchall()
+
+    except mysql.connector.Error as err:
+
+        #if-else unique to some errors can be added
+
+        print("\nFailed: {}".format(err))
+
+    finally:
+        return records
+    
