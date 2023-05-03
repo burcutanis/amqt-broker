@@ -328,7 +328,7 @@ class ProtocolHandler:
             self.logger.debug("Add message to delivery")
             await self.session.delivered_message_queue.put(app_message)
             # Send PUBACK
-            puback = PubackPacket.build(app_message.packet_id)
+            puback = PubackPacket.build(app_message.packet_id) ##############################
             await self._send_packet(puback)
             app_message.puback_packet = puback
 
@@ -607,7 +607,7 @@ class ProtocolHandler:
     async def handle_unsubscribe(self, subscribe: UnsubscribePacket):
         self.logger.debug("%s UNSUBSCRIBE unhandled" % self.session.client_id)
 
-    async def handle_suback(self, suback: SubackPacket):
+    async def handle_suback(self, suback: SubackPacket): ##################################3
         self.logger.debug("%s SUBACK unhandled" % self.session.client_id)
 
     async def handle_unsuback(self, unsuback: UnsubackPacket):
@@ -625,7 +625,7 @@ class ProtocolHandler:
     async def handle_connection_closed(self):
         self.logger.debug("%s Connection closed unhandled" % self.session.client_id)
 
-    async def handle_puback(self, puback: PubackPacket):
+    async def handle_puback(self, puback: PubackPacket): ############################3
         packet_id = puback.variable_header.packet_id
         try:
             waiter = self._puback_waiters[packet_id]

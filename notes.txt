@@ -64,8 +64,20 @@ en sonuna zaten mac eklenmeli ama en başına da 0 ya da 1 şeklinde encapsulati
 0 -> mac yok 
 encapsulated packet: 0 | ack_paketi
 
+
 1 -> mac var
 encapsulated packet: 1 | ack_paketi | mac_signature
 
 broker tarafında daha tricky olabilir işlemler
+
+
+1 -> mac var
+encapsulated packet: 1 | ack_paketi | mac_signature
+
+broker tarafında ackler için direkt class methodu olarak build var, ya classa field eklenecek ya da variable headerın başına ilk byte olarak 1 byte eklenecek 0 ya da 1 olarak mac var/yoku göstermek için
+ayrıca mac dite bir field da gerekebilir, normal paketler için boş bırakılır ama yine de orada bulunması gerkiyor
+çok fazla yerde değişiklik gerekebilir, ack paketi classının geçtiği he ryeri kontol etmek lazım emin olmak için
+
+broker tarafında daha tricky olabilir işlemler
+
 ********************************************************************

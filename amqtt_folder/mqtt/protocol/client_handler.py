@@ -112,7 +112,7 @@ class ClientProtocolHandler(ProtocolHandler):
             del self._subscriptions_waiter[subscribe.variable_header.packet_id]
         return return_codes
 
-    async def handle_suback(self, suback: SubackPacket):
+    async def handle_suback(self, suback: SubackPacket): ###############################3
         packet_id = suback.variable_header.packet_id
         waiter = self._subscriptions_waiter.get(packet_id)
         if waiter is not None:
