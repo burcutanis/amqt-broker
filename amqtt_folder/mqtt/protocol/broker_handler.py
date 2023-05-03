@@ -918,8 +918,8 @@ class BrokerProtocolHandler(ProtocolHandler):
             
             
         #bilgesu: modification end
-
-        suback = SubackPacket.build(packet_id, return_codes, None) #build the packet in its default version
+        else:
+            suback = SubackPacket.build(packet_id, return_codes, None) #build the packet in its default version
         await self._send_packet(suback)
 
     async def mqtt_acknowledge_unsubscription(self, packet_id):
