@@ -564,7 +564,7 @@ class BrokerProtocolHandler(ProtocolHandler):
             
             self.logger.info("CLIENT: %s ENCRYPTED TEXT: %s", self.session.client_id, encrypted_text)
 
-            await self.mqtt_publish(self.session.client_id, data = encode_data_with_length(encrypted_text), qos=2, retain= False )
+            await self.mqtt_publish(self.session.client_id, data = encode_data_with_length(encrypted_text), qos=1, retain= False )
             self.logger.info("PUBLISH MESSAGE OF STEP 8 OF DH IS SENT TO CLIENT: %s ", self.session.client_id)
             
 
@@ -618,7 +618,7 @@ class BrokerProtocolHandler(ProtocolHandler):
                 
                 pem = x509.public_bytes(encoding=serialization.Encoding.PEM)
                 sent_data = pem + b'::::' + dh1_public + b'::::' + self.session.session_info.n1 + b'::::' + signature   #nonce added
-                await self.mqtt_publish(topicname, data = encode_data_with_length(sent_data), qos=2, retain= False )
+                await self.mqtt_publish(topicname, data = encode_data_with_length(sent_data), qos=1, retain= False )
                
                 self.logger.info("PUBLISH MESSAGE OF STEP 5 OF DH IS SENT TO CLIENT: %s ", self.session.client_id)
                 
@@ -735,7 +735,7 @@ class BrokerProtocolHandler(ProtocolHandler):
                         padder = padding2.PKCS7(algorithms.AES(self.session.session_info.session_key).block_size).padder()
                         padded_data = padder.update(value) + padder.finalize()
                         encrypted_text = encryptor.update(padded_data) + encryptor.finalize()
-                        await self.mqtt_publish(self.session.client_id, data = encode_data_with_length(encrypted_text), qos=2, retain= False )
+                        await self.mqtt_publish(self.session.client_id, data = encode_data_with_length(encrypted_text), qos=1, retain= False )
                     
 
                         await self.handle_connection_closed()
@@ -755,7 +755,7 @@ class BrokerProtocolHandler(ProtocolHandler):
                     padder = padding2.PKCS7(algorithms.AES(self.session.session_info.session_key).block_size).padder()
                     padded_data = padder.update(value) + padder.finalize()
                     encrypted_text = encryptor.update(padded_data) + encryptor.finalize()
-                    await self.mqtt_publish(self.session.client_id, data = encode_data_with_length(encrypted_text), qos=2, retain= False )
+                    await self.mqtt_publish(self.session.client_id, data = encode_data_with_length(encrypted_text), qos=1, retain= False )
                    
 
                     await self.handle_connection_closed()
@@ -804,7 +804,7 @@ class BrokerProtocolHandler(ProtocolHandler):
                     encrypted_text = encryptor.update(padded_data) + encryptor.finalize()
                    
                     self.logger.info("CLIENT: %s, ENCRYPTED TEXT TO BE SEND: %s", self.session.client_id, encrypted_text)
-                    await self.mqtt_publish(self.session.client_id, data = encode_data_with_length(encrypted_text), qos=2, retain= False )
+                    await self.mqtt_publish(self.session.client_id, data = encode_data_with_length(encrypted_text), qos=1, retain= False )
                    
                     self.logger.info("PUBLISH MESSAGE OF STEP 10 OF DH IS SENT TO CLIENT: %s ", self.session.client_id)
 
@@ -824,7 +824,7 @@ class BrokerProtocolHandler(ProtocolHandler):
                     padder = padding2.PKCS7(algorithms.AES(self.session.session_info.session_key).block_size).padder()
                     padded_data = padder.update(value) + padder.finalize()
                     encrypted_text = encryptor.update(padded_data) + encryptor.finalize()
-                    await self.mqtt_publish(self.session.client_id, data = encode_data_with_length(encrypted_text), qos=2, retain= False )
+                    await self.mqtt_publish(self.session.client_id, data = encode_data_with_length(encrypted_text), qos=1, retain= False )
                    
 
                     await self.handle_connection_closed()
