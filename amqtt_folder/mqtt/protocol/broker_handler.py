@@ -29,7 +29,7 @@ from .handler import EVENT_MQTT_PACKET_RECEIVED, EVENT_MQTT_PACKET_SENT
 
 #new imports
 from diffiehellman import DiffieHellman
-from amqtt_folder.clientconnection import pushRowToDatabase, updateRowFromDatabase, getStatementFromChoiceTokens, pushRowToChoiceTokenTable, updateRowFromChoiceTokens, deleteRowFromChoiceTokens
+from amqtt_folder.clientconnection import pushRowToDatabase, updateRowFromDatabase, getStatementFromChoiceTokens, pushRowToChoiceTokenTable, updateRowFromChoiceTokens, deleteRowFromChoiceTokens, getStatementFromWildChoiceTokens
 from amqtt_folder.codecs import (
     encode_string,
     bytes_to_hex_str, 
@@ -332,7 +332,215 @@ class BrokerProtocolHandler(ProtocolHandler):
  
     """END: 4 Nisan'da eklendi"""
 
+
+    async def sendChoiceTokenWildcards(self, topicName_str):
+      
+        self.logger.info("----FUNCTION: send_choice_token_wildcards %s topicname %s ----" , self.session.client_id,topicName_str)
+        self.logger.info("----FUNCTION: PREPARATION OF PUBLISH MESSAGE FOR CLIENT %s FOR CHOICE TOKEN ----" , self.session.client_id)              
+        payload_send = b''
+        #2may2023
+                   
+        self.logger.debug("topicName: %s ", topicName_str)
+                  
+
+        self.logger.info("346")
+        self.logger.info(topicName_str)
+        rows = getStatementFromChoiceTokens(topicName_str)
+        self.logger.info("CLIENT: %s, topicname_str: %s ", self.session.client_id, topicName_str )
+        self.logger.info("349")
+        if (rows == None or len(rows) == 0 or rows == []): 
+            choiceToken = secrets.token_hex() #256 bitlik bir token oluşturuyor
+            pushRowToChoiceTokenTable(choiceToken, topicName_str)
+            rows = getStatementFromChoiceTokens(topicName_str)
+            self.logger.info("354")
+        else:
+            self.logger.debug("got token from database")
+            self.logger.info("355")
+
+        #self.session.session_info.subscribed_topics.add (topicName,1)
+
+        tupleobj = rows[0]
+        topic = tupleobj[0]
+        choiceHex = tupleobj[1]
+        self.logger.info(choiceHex)
+        self.logger.info("CLIENT: %s, TOPIC: %s, AND ITS CORRESPONDING CHOICE TOKEN: %s ", self.session.client_id, topicName_str, choiceHex )
+        #self.logger.debug("Topic: %s", topic)
+        #self.logger.debug("ChoiceHex  (182) in broker: %s", choiceHex)
+        choiceByte = unhexlify(choiceHex)
+        self.logger.debug("ChoiceByte  (184) in broker: %s", choiceByte)
+        topicName_byte = force_bytes(topicName_str)
+
+        #append topics and choideToken bytes for payload
+        payload_send += topicName_byte + b'::::' + choiceByte + b'::::'
+
+        message_str = self.session.session_info.client_id
+        message = bytes(message_str, 'utf-8')
+        self.logger.info("----FUNCTION: PREPARATION OF PUBLISH MESSAGE FOR CLIENT %s FOR REQUESTED CHOICE TOKEN (step 4 of choice token scheme)----" , self.session.client_id)
+
+                
+
+        h = hmac.HMAC(self.session.session_info.session_key, hashes.SHA256())
+        h.update(message)
+        signature = h.finalize()
+
+        topicName = message + b'::::' + signature
+
+        backend = default_backend() 
+        encryptor = Cipher(algorithms.AES(self.session.session_info.session_key), modes.ECB(), backend).encryptor()
+        padder = padding2.PKCS7(algorithms.AES(self.session.session_info.session_key).block_size).padder()
+        padded_data = padder.update(topicName) + padder.finalize()
+        topicNameEncryptedByte = encryptor.update(padded_data) + encryptor.finalize()
+        topicNameEncryptedHex = topicNameEncryptedByte.hex()
+
+        payload_send_without_last_divider = payload_send[0 : len(payload_send)-4]
+
+        msgid = self.session.next_packet_id
+        msgid_str = str(msgid)
+        qos = 1
+        retainFlag = False
+        message_str = str(qos) + str(retainFlag)
+        message_bytes = payload_send_without_last_divider  + force_bytes(message_str)+ force_bytes(msgid_str)
+        self.logger.info("message_bytes: %s ", message_bytes)
+
+
+        h = hmac.HMAC(self.session.session_info.session_key, hashes.SHA256())
+        h.update(message_bytes)
+        signature = h.finalize()
+
+        payload_mac_merged = payload_send + signature 
+
+        #bilgesu: modification
+        self.logger.debug("*************************payload_mac_merged: %s", payload_mac_merged)
+
+        encryptor = Cipher(algorithms.AES(self.session.session_info.session_key), modes.ECB(), backend).encryptor()
+        padder = padding2.PKCS7(algorithms.AES(self.session.session_info.session_key).block_size).padder()
+        padded_data = padder.update(payload_mac_merged) + padder.finalize()
+        payloadByte = encryptor.update(padded_data) + encryptor.finalize()
+        self.logger.debug(payloadByte)
+                
+        self.logger.debug("alldatabeforepublish:%s", payloadByte)
+        self.logger.info("CLIENT: %s, ENCRYPTED TOPIC NAME: %s ", self.session.client_id, topicNameEncryptedHex )
+        self.logger.info("CLIENT: %s, ENCRYPTED PAYLOAD SEND FOR CHOICE TOKEN: %s ", self.session.client_id, payloadByte  )
+              
+               
+        await self.mqtt_publish(topicNameEncryptedHex, data = encode_data_with_length(payloadByte), qos=1, retain= False, msgid=msgid )
+        self.logger.info("REQUESTED CHOICE TOKEN IS SENT TO CLIENT (step 4 of choice token schema): %s ", self.session.client_id  )
+
+                
+    """END: 2 mayis'da eklendi"""
+
+
+    async def sendChoiceTokenWildDB(self, topicName_wild):
+      
+        self.logger.info("----FUNCTION: send_choice_token_wildDB %s topicname %s ----" , self.session.client_id,topicName_wild)
+        self.logger.info("----FUNCTION: PREPARATION OF PUBLISH MESSAGE FOR CLIENT %s FOR CHOICE TOKEN ----" , self.session.client_id)              
+        payload_send = b''
+        #2may2023
+                   
+        self.logger.debug("topicName: %s ", topicName_wild)
+        topicName_wild_str = bytes.decode(topicName_wild, 'utf-8')
+
+        tokenDict = {}
+
+              
+        if '+' in topicName_wild_str: 
+            index = topicName_wild_str.index('+')
+            topicName_without_wild = topicName_wild_str[0:index]
+            topicName_exact = None
+
+        elif '#' in topicName_wild_str: 
+            index = topicName_wild_str.index('#')
+            topicName_without_wild = topicName_wild_str[0:index]
+            topicName_exact = topicName_wild_str[0:index-1]
+      
         
+        self.logger.info("346")
+        
+        rows = getStatementFromWildChoiceTokens(topicName_without_wild)
+        self.logger.info("CLIENT: %s, topicname_str: %s ", self.session.client_id, topicName_wild_str )
+        self.logger.info("CLIENT: %s, topicname_str without wild: %s ", self.session.client_id, topicName_without_wild )
+        self.logger.info("349")
+        if (rows == None or len(rows) == 0 or rows == []): 
+            self.logger.debug("there is no choice token")
+        else:
+            for tupleobj in rows:
+                topic = tupleobj[0]
+                choiceHex = tupleobj[1]
+                #self.logger.info("CLIENT: %s, TOPIC: %s, AND ITS CORRESPONDING CHOICE TOKEN: %s ", self.session.client_id, topic, choiceHex )
+                tokenDict[topic] = choiceHex
+
+
+        if topicName_exact != None:
+            rows = getStatementFromChoiceTokens(topicName_exact)
+            self.logger.info("CLIENT: %s, topicname_str_exact: %s ", self.session.client_id, topicName_exact )
+            if (rows == None or len(rows) == 0 or rows == []): 
+                self.logger.debug("there is no choice token")
+            else:
+                tupleobj = rows[0]
+                topic = tupleobj[0]
+                choiceHex = tupleobj[1]
+                #self.logger.info("CLIENT: %s, TOPIC: %s, AND ITS CORRESPONDING CHOICE TOKEN: %s ", self.session.client_id, topic, choiceHex )
+                tokenDict[topic] = choiceHex
+                
+        for topic in tokenDict:
+            self.logger.info("CLIENT: %s, TOPIC: %s, AND ITS CORRESPONDING CHOICE TOKEN: %s ", self.session.client_id, topic, tokenDict[topic] )
+            choiceHex = tokenDict[topic]
+            choiceByte = unhexlify(choiceHex)
+            self.logger.debug("ChoiceByte  (184) in broker: %s", choiceByte)
+            topicName_byte = force_bytes(topic)
+            payload_send = topicName_byte + b'::::' + choiceByte 
+            
+            message_str = self.session.session_info.client_id
+            message = bytes(message_str, 'utf-8')
+            self.logger.info("----FUNCTION: PREPARATION OF PUBLISH MESSAGE FOR CLIENT %s FOR REQUESTED CHOICE TOKEN (step 4 of choice token scheme)----" , self.session.client_id)
+            
+            h = hmac.HMAC(self.session.session_info.session_key, hashes.SHA256())
+            h.update(message)
+            signature = h.finalize()
+
+            topicName = message + b'::::' + signature
+
+            backend = default_backend() 
+            encryptor = Cipher(algorithms.AES(self.session.session_info.session_key), modes.ECB(), backend).encryptor()
+            padder = padding2.PKCS7(algorithms.AES(self.session.session_info.session_key).block_size).padder()
+            padded_data = padder.update(topicName) + padder.finalize()
+            topicNameEncryptedByte = encryptor.update(padded_data) + encryptor.finalize()
+            topicNameEncryptedHex = topicNameEncryptedByte.hex()
+
+            msgid = self.session.next_packet_id
+            msgid_str = str(msgid)
+            qos = 1
+            retainFlag = False
+            message_str = str(qos) + str(retainFlag)
+            message_bytes = payload_send  + force_bytes(message_str)+ force_bytes(msgid_str)
+            self.logger.info("message_bytes: %s ", message_bytes)
+
+            h = hmac.HMAC(self.session.session_info.session_key, hashes.SHA256())
+            h.update(message_bytes)
+            signature = h.finalize()
+
+            payload_mac_merged = b'wildcardChoiceToken' + b'::::' + payload_send + b'::::' + signature 
+
+
+            encryptor = Cipher(algorithms.AES(self.session.session_info.session_key), modes.ECB(), backend).encryptor()
+            padder = padding2.PKCS7(algorithms.AES(self.session.session_info.session_key).block_size).padder()
+            padded_data = padder.update(payload_mac_merged) + padder.finalize()
+            payloadByte = encryptor.update(padded_data) + encryptor.finalize()
+            self.logger.debug(payloadByte)
+                    
+            self.logger.debug("alldatabeforepublish:%s", payloadByte)
+            self.logger.info("CLIENT: %s, ENCRYPTED TOPIC NAME: %s ", self.session.client_id, topicNameEncryptedHex )
+            self.logger.info("CLIENT: %s, ENCRYPTED PAYLOAD SEND FOR CHOICE TOKEN: %s ", self.session.client_id, payloadByte  )
+                
+                
+            await self.mqtt_publish(topicNameEncryptedHex, data = encode_data_with_length(payloadByte), qos=1, retain= False, msgid=msgid )
+            self.logger.info("REQUESTED CHOICE TOKEN IS SENT TO CLIENT (step 4 of choice token schema): %s ", self.session.client_id  )
+
+     
+                
+    """END: 2 mayis'da eklendi"""
+
+
     """START 29mart2023 te eklendi """  
     async def send_publish_step_8(self):
         try:
