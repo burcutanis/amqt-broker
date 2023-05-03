@@ -915,11 +915,11 @@ class BrokerProtocolHandler(ProtocolHandler):
         #bilgesu: modification
         if self.session.session_info.authenticated == True: 
             suback = SubackPacket.build(packet_id, return_codes, self.session.session_info.session_key) #build the packet with the signed version
-            
-            
-        #bilgesu: modification end
+        
         else:
             suback = SubackPacket.build(packet_id, return_codes, None) #build the packet in its default version
+            
+        #bilgesu: modification end
 
 
 
