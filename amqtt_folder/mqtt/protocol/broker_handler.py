@@ -926,7 +926,7 @@ class BrokerProtocolHandler(ProtocolHandler):
         await self._send_packet(suback)
 
     async def mqtt_acknowledge_unsubscription(self, packet_id):
-        unsuback = UnsubackPacket.build(packet_id)
+        unsuback = UnsubackPacket.build(packet_id, self.session.session_info.session_key)
         await self._send_packet(unsuback)
 
     async def mqtt_connack_authorize(self, authorize: bool):
