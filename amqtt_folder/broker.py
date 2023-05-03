@@ -785,6 +785,10 @@ class Broker:
                         
                        
                         return_codes.append(result)
+
+
+                    
+
                     await handler.mqtt_acknowledge_subscription(
                         subscriptions["packet_id"], return_codes
                     )
