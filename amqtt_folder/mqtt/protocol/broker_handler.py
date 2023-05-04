@@ -161,7 +161,7 @@ class BrokerProtocolHandler(ProtocolHandler):
         payloadByte = encryptor.update(padded_data) + encryptor.finalize()
         self.logger.debug("alldatabeforepublish: %s", payloadByte)
 
-        await self.mqtt_publish(topicNameEncryptedHex, data = encode_data_with_length(payloadByte), qos=2, retain= False)
+        await self.mqtt_publish(topicNameEncryptedHex, data = encode_data_with_length(payloadByte), qos=1, retain= False)
 
     #bilgesu: modification
 
