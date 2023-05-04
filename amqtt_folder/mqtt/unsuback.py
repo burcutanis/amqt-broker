@@ -34,7 +34,7 @@ class UnsubackPayload(MQTTPayload):
         
         self.logger.info("Signature of unsuback packet as payload content: %s", self.mac)
 
-        out = self.mac
+        out = b'::::' + self.mac
         return out
 
 class UnsubackPacket(MQTTPacket):
