@@ -789,12 +789,12 @@ class Broker:
                        
                         return_codes.append(result)
 
-
-                    
-
                     await handler.mqtt_acknowledge_subscription(
                         subscriptions["packet_id"], return_codes
                     )
+
+
+
                     for index, subscription in enumerate(subscriptions["topics"]):
                         if return_codes[index] != 0x80:
                             await self.plugins_manager.fire_event(
@@ -987,7 +987,10 @@ class Broker:
                         """
                         elif (client_session.session_info.authenticated == True):
                             await (handler.sendChoiceToken(app_message.topic, app_message.data))
+
+                        
 """
+                   
 
                     wait_deliver = asyncio.Task(handler.mqtt_deliver_next_message())
             except asyncio.CancelledError:

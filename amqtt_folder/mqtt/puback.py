@@ -6,13 +6,43 @@ from amqtt_folder.mqtt.packet import (
     MQTTFixedHeader,
     PUBACK,
     PacketIdVariableHeader,
+    MQTTPayload,
+    MQTTVariableHeader,
 )
 from amqtt_folder.errors import AMQTTException
+from amqtt_folder.errors import AMQTTException, NoDataException
+from amqtt_folder.adapters import ReaderAdapter
+from amqtt_folder.codecs import bytes_to_int, int_to_bytes, read_or_raise
+from cryptography.hazmat.primitives import hashes, hmac
+import logging
 
 
+
+class PubackPayload(MQTTPayload):
+
+    __slots__ = ("mac")
+
+    def __init__(self, mac_received):
+        super().__init__()
+        self.mac = mac_received
+        self.logger = logging.getLogger(__name__)
+        
+    def to_bytes(
+        self, fixed_header: MQTTFixedHeader, variable_header: MQTTVariableHeader
+    ):
+        out = b""
+
+        self.logger.info("Signature of suback packet padded to payload with the return codes: %s", self.mac)
+
+        if self.mac != None:
+            out += b"::::" + self.mac 
+
+        return out
+
+  
 class PubackPacket(MQTTPacket):
     VARIABLE_HEADER = PacketIdVariableHeader
-    PAYLOAD = None
+    PAYLOAD = PubackPayload
 
     @property
     def packet_id(self):
@@ -26,6 +56,7 @@ class PubackPacket(MQTTPacket):
         self,
         fixed: MQTTFixedHeader = None,
         variable_header: PacketIdVariableHeader = None,
+        payload: PubackPayload  = None,
     ):
         if fixed is None:
             header = MQTTFixedHeader(PUBACK, 0x00)
@@ -38,10 +69,28 @@ class PubackPacket(MQTTPacket):
             header = fixed
         super().__init__(header)
         self.variable_header = variable_header
-        self.payload = None
+        self.payload = payload
 
     @classmethod
-    def build(cls, packet_id: int):
+    def build(cls, packet_id: int, client_unique_session_key = None):
         v_header = PacketIdVariableHeader(packet_id)
-        packet = PubackPacket(variable_header=v_header)
+        if client_unique_session_key != None:
+            byte_packet_id = bytes(str(packet_id), 'utf-8')
+            to_be_signed =  byte_packet_id 
+            print("*******************puback******************************", to_be_signed)
+
+
+            h = hmac.HMAC(client_unique_session_key, hashes.SHA256())
+            h.update(to_be_signed)
+            mac = h.finalize()
+            
+            print("************************puback*************************", mac)
+            payload_v = PubackPayload(mac_received=mac)
+            print("************************puback*************************", payload_v)
+            packet = PubackPacket(variable_header=v_header, payload=payload_v)
+            #packet = PubackPacket(variable_header=v_header)
+        else: 
+            packet = PubackPacket(variable_header=v_header)
+
+        
         return packet

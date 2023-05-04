@@ -328,7 +328,10 @@ class ProtocolHandler:
             self.logger.debug("Add message to delivery")
             await self.session.delivered_message_queue.put(app_message)
             # Send PUBACK
-            puback = PubackPacket.build(app_message.packet_id) ##############################
+            if self.session.session_info.authenticated == True:
+                puback = PubackPacket.build(app_message.packet_id, self.session.session_info.session_key) ##############################
+            else: 
+                puback = PubackPacket.build(app_message.packet_id)
             await self._send_packet(puback)
             app_message.puback_packet = puback
 
@@ -624,7 +627,7 @@ class ProtocolHandler:
 
     async def handle_connection_closed(self):
         self.logger.debug("%s Connection closed unhandled" % self.session.client_id)
-
+    
     async def handle_puback(self, puback: PubackPacket): ############################3
         packet_id = puback.variable_header.packet_id
         try:
@@ -636,7 +639,7 @@ class ProtocolHandler:
             )
         except InvalidStateError:
             self.logger.warning("PUBACK waiter with Id '%d' already done" % packet_id)
-
+    
     async def handle_pubrec(self, pubrec: PubrecPacket):
         packet_id = pubrec.packet_id
         try:
