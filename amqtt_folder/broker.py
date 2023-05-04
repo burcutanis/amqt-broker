@@ -1397,6 +1397,7 @@ class Broker:
                             qos,
                             retain=retainFlag,
                             msgid = msgid
+                            
                         ),
                     )
                     self.logger.debug("1260")
