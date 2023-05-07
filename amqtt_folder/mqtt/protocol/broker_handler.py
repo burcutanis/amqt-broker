@@ -250,11 +250,17 @@ class BrokerProtocolHandler(ProtocolHandler):
                     self.logger.info("CLIENT: %s, DECRYPTED TOPIC FOR WHICH CHOICE TOKEN IS REQUESTED: %s ", self.session.client_id, topicName_str )
                     if (rows == None or len(rows) == 0 or rows == []): 
                         choiceToken = secrets.token_hex() #256 bitlik bir token oluşturuyor
-                        pushRowToChoiceTokenTable(choiceToken, topicName_str)
+                        try: 
+                            pushRowToChoiceTokenTable(choiceToken, topicName_str)
+                            self.logger.debug("push to database")
+                            self.logger.debug(rows)
+                        except: 
+                            self.logger.debug("exception from pushing")
+                        self.logger.debug(topicName_str)
                         rows = getStatementFromChoiceTokens(topicName_str)
                     else:
                         self.logger.debug("got token from database")
-
+                    self.logger.debug(rows)
                     tupleobj = rows[0]
                     topic = tupleobj[0]
                     choiceHex = tupleobj[1]

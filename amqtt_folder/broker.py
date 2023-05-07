@@ -1374,6 +1374,7 @@ class Broker:
                     signature = h.finalize()
 
                     payload_and_sign = payload + b'::::' + signature
+                    self.logger.info("1196 payload_and_sign: %s", payload_and_sign)
                     #self.logger.debug("1241")
 
 
