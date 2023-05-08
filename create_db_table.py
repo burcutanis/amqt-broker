@@ -58,8 +58,8 @@ def createDatabaseAndDatabaseTables():
     #START Modification: 6 NISAN
     choiceToken = (
         "CREATE TABLE `choiceTokens` ("
-        "  `topicName` varchar(32) NOT NULL,"
-        "  `choiceToken` varchar(32) NOT NULL,"
+        "  `topicName` varchar(700) NOT NULL,"
+        "  `choiceToken` varchar(128) NOT NULL,"
         "   PRIMARY KEY (`topicName`)"
     ") ENGINE=InnoDB")
 
