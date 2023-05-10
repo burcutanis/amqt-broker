@@ -124,6 +124,11 @@ class SubackPacket(MQTTPacket):
 
             to_be_signed = byte_packet_id + b'::::' + return_codes_appended_byte
 
+
+
+            #DISTORTED ON PURPOSE:
+            #to_be_signed = b'randomBytes' + b'::::' + return_codes_appended_byte
+
             print("*************************************************", to_be_signed)
 
 
