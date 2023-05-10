@@ -71,6 +71,11 @@ class UnsubackPacket(MQTTPacket):
 
             bytes_packet_id = bytes(str_packet_id, 'utf-8')
 
+
+            #DISTORTION ON PURPOSE
+            #bytes_packet_id = bytes("dummyText", 'utf-8')
+
+
             h = hmac.HMAC(client_unique_session_key, hashes.SHA256())
             h.update(bytes_packet_id)
             mac_content = h.finalize()
