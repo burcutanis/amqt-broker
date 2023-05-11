@@ -730,6 +730,7 @@ class Broker:
 
                         #MODIFICATION START 10 NISAN
                         if (client_session.session_info.authenticated == True):
+                            
                             self.logger.info("#####SUBSRCIPTION RECEIVED FROM CLIENT: %s#####", client_session.client_id  )
                             self.logger.info("CLIENT: %s, AUTHENTICATED ENCRYPTION VERSION OF THE SUBSRCIPTION: %s ", client_session.client_id, subscription[0]  )
                             topicnamebyte = unhexlify(subscription[0])
@@ -743,6 +744,8 @@ class Broker:
                             topicName = unpadded[0:index1]
                             mac_of_topicName = unpadded[index1+4:]
                             self.logger.info("subscription qps: %s",subscription[1])
+                            topic_name_str = force_str(topicName)
+                            client_session.session_info.subscribed_topics[topic_name_str] = "1"
 
                             message_str = force_str(topicName) + str(subscription[1]) + str(subscriptions["packet_id"])
                             message_byte = force_bytes(message_str)

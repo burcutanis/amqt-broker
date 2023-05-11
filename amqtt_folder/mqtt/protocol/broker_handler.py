@@ -197,6 +197,9 @@ class BrokerProtocolHandler(ProtocolHandler):
         if (signature == macCode):
             self.logger.info("CLIENT: %s, MAC OF THE TOPIC 'choiceToken' IS SAME ", self.session.client_id )
             self.logger.debug("MAC of the topic name is same")
+            topic_name_str = topicname
+            
+            #self.session.session_info.subscribed_topics[topic_name_str] = "1"
             decryptor = Cipher(algorithms.AES(self.session.session_info.session_key), modes.ECB(), backend).decryptor()
             padder = padding2.PKCS7(algorithms.AES(self.session.session_info.session_key).block_size).unpadder()
             decrypted_data = decryptor.update(payload) 
@@ -348,6 +351,7 @@ class BrokerProtocolHandler(ProtocolHandler):
         #2may2023
                    
         self.logger.debug("topicName: %s ", topicName_str)
+       
                   
 
         self.logger.info("353")
@@ -364,7 +368,7 @@ class BrokerProtocolHandler(ProtocolHandler):
             self.logger.debug("got token from database")
             self.logger.info("365")
 
-        #self.session.session_info.subscribed_topics.add (topicName,1)
+       
         if (rows == None or len(rows) == 0 or rows == []):   # 11may2023
                 self.logger.info("369 xxxxxxxxxxxxxxxx")     # 11may2023
         else:                                                # 11may2023
@@ -434,6 +438,7 @@ class BrokerProtocolHandler(ProtocolHandler):
                 
             await self.mqtt_publish(topicNameEncryptedHex, data = encode_data_with_length(payloadByte), qos=1, retain= False, msgid=msgid )
             self.logger.info("REQUESTED CHOICE TOKEN IS SENT TO CLIENT (step 4 of choice token schema): %s ", self.session.client_id  )
+           
 
                     
     """END: 2 mayis'da eklendi"""
