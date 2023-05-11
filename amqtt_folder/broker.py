@@ -759,17 +759,18 @@ class Broker:
 
 
                             if (signature == mac_of_topicName):
-
-                              
                                 self.logger.info("CLIENT: %s, MAC OF THE SUBSCRIBED TOPIC IS THE SAME", client_session.client_id)
-
-                                
-
                                 topicName_str = bytes.decode(topicName)
                                 my_list = list(subscription)
-                                my_list[0] = topicName_str
+
+                                self.logger.debug("#broker.py, 766: my_list = list(subscription) ")
+                                self.logger.debug(tuple(my_list))
+                                my_list[0] = topicName_str   
                                 subscription = tuple(my_list)
-                                #self.logger.debug("#broker.py, 727: SUBSCRIPTION %s", subscription)
+                                self.logger.debug("#broker.py, 770: my_list ")
+                                self.logger.debug(tuple(my_list))
+                                self.logger.debug("#broker.py, 772: SUBSCRIPTION %s", subscription)
+                                self.logger.debug("#broker.py, 773: topicName_str %s", topicName_str)
                                 if (subscription[0] != client_session.client_id):
                                     if ('+' in topicName_str or '#' in topicName_str):
                                         await (handler.sendChoiceTokenWildDB(topicName))
@@ -932,6 +933,8 @@ class Broker:
                                         if(mac_of_payload == signature2):
                                             self.logger.info("CLIENT: %s, MAC OF PAYLOAD IS SAME", client_session.client_id )
                                             self.logger.info("CLIENT: %s, DECRYPTED PAYLOAD (still encrypted with choice token): %s from topic %s", client_session.client_id, payload, topicName)
+                                            self.logger.info("CLIENT: %s, DECRYPTED VERSION OF THE PUBLISHED TOPIC: %s ", client_session.client_id, topicName  )
+                                            app_message.topic = topicName_str
                                             app_message.data = payload
                                             #self.logger.debug("825# PAYLOAD BROKER.PY: %s", app_message.data)
                                             #self.logger.debug("826# CHOICE TOKEN TOPIC: %s", app_message.topic)
@@ -947,7 +950,8 @@ class Broker:
                                             '''
 
                                         else: 
-                                            self.logger.info("CLIENT: %s, OF PAYLOAD IS  NOT SAME", client_session.client_id )
+                                            self.logger.info("broker.py, 953: CLIENT: %s, MAC OF PAYLOAD IS  NOT SAME", client_session.client_id )
+                                            self.logger.info("CLIENT: %s, DECRYPTED VERSION OF THE PUBLISHED TOPIC: %s ", client_session.client_id, topicName  )
 
                                             #bilgesu: modification
                                             self.logger.debug("sendBadMAC called")
@@ -955,7 +959,8 @@ class Broker:
                                             #bilgesu: modification
 
                                 else: 
-                                    self.logger.debug("broker.py, 897: MAC OF TOPIC NAME IS NOT SAME")  
+                                    self.logger.debug("broker.py, 967: CLIENT: %s, MAC OF TOPIC NAME IS NOT SAME", client_session.client_id )
+                                    self.logger.info("CLIENT: %s, DECRYPTED VERSION OF THE PUBLISHED TOPIC: %s ", client_session.client_id, topicName  ) 
 
                                     #bilgesu: modification
                                     self.logger.debug("sendBadMAC called")
@@ -1156,9 +1161,13 @@ class Broker:
             )
             if not already_subscribed:
                 self._subscriptions[a_filter].append((session, qos))
+                self.logger.debug(      #11may2023
+                    "1161 add client %s subscription to topic: %s"
+                    % (format_client_message(session=session), a_filter)
+                )
             else:
                 self.logger.debug(
-                    "Client %s has already subscribed to %s"
+                    "Client %s has already subscribed to topic: %s"
                     % (format_client_message(session=session), a_filter)
                 )
             return qos
@@ -1260,7 +1269,10 @@ class Broker:
 
         if self.logger.isEnabledFor(logging.DEBUG):
             self.logger.debug("broadcasting: %r", broadcast["data"])
-
+            self.logger.debug("1271 broadcasting data: %r", broadcast["data"])
+            self.logger.debug("1272 broadcasting topic: %r", broadcast["topic"])
+            xsession_client_id =  broadcast["session"].client_id
+            self.logger.debug("1273 broadcasting from source session client id: %r",xsession_client_id)
         for k_filter in self._subscriptions:
             if broadcast["topic"].startswith("$") and (
                 k_filter.startswith("+") or k_filter.startswith("#")
@@ -1316,11 +1328,12 @@ class Broker:
                     self.logger.debug("1220 - both source session & destination session are authenticated")
 
                     value = target_session.session_info.subscribed_topics.get(publish_topic,"0")   # 2may2023
-                    self.logger.debug("1309 - subscribed_topics(publish_topic,None) value = %s ", value)
+                    self.logger.debug("1320 - subscribed_topics value = %s ", target_session.session_info.subscribed_topics)
+                    self.logger.debug("1321 - subscribed_topics.get(publish_topic,0)  value = %s ", value)
                     if (value == "0" ) :
                         target_session.session_info.subscribed_topics[publish_topic] = "1"
-                        value = target_session.session_info.subscribed_topics.get(publish_topic,0)
-                        self.logger.debug("1313 - subscribed_topics(publish_topic,None) value = %s ", value)
+                        value = target_session.session_info.subscribed_topics.get(publish_topic,"0")
+                        self.logger.debug("1325 - subscribed_topics.get(publish_topic,0) value = %s ", value)
                         await ( handler.sendChoiceTokenWildcards(publish_topic) )
  
                     self.logger.info("####PUBLISH MESSAGE IS GOING TO BE RELAYED TO CLIENT: %s####", target_session.client_id)
