@@ -674,7 +674,7 @@ class BrokerProtocolHandler(ProtocolHandler):
 
                 index3 = nonce_rsa_sign.index(b'::::')
                 nonce = nonce_rsa_sign[0:index3]
-
+                #nonce = nonce_rsa_sign[0:]   #FOR ERROR CASE NONCE1 CANNOT VERIFIED FOR THE COMMING MESSAGE FROM DH STEP 6
                 client_rsa_sign = nonce_rsa_sign[index3+4:]
 
                 dh1 = self.session.session_info.dh
@@ -701,6 +701,7 @@ class BrokerProtocolHandler(ProtocolHandler):
 
                 client_ID_byte = bytes(self.session.client_id, 'UTF-8')
                 message = client_dh_public_key + b'::::' + nonce + b'::::' + client_ID_byte
+                #message = client_dh_public_key + b'::::' + nonce + b'::::'   #FOR ERROR CASE SIGN CANNOT VERIFIED FOR THE COMMING MESSAGE FROM DH STEP 6
                 message_bytes = bytes(message)
                 client_rsa_sign_bytes = bytes(client_rsa_sign)
 
@@ -710,7 +711,6 @@ class BrokerProtocolHandler(ProtocolHandler):
                 self.session.session_info.key_establishment_state = 6
 
                 try:
-                    
                     client_x509_public_key.verify(
                         client_rsa_sign_bytes,
                         message_bytes,
@@ -753,27 +753,25 @@ class BrokerProtocolHandler(ProtocolHandler):
                     
 
                         await self.handle_connection_closed()
-
-                except:
+                     
+                   
+                except:  
                     #sign not verified
-                    
                     self.logger.info("CLIENT: %s, SIGN NOT VERIFIED", self.session.client_id )
                     self.session.session_info.disconnect_flag = True
 
                     #send some message as not authenticated to stop paho from reconnnecting
-
+                    
                     notAuthMessage = self.session.session_info.client_id +  "::::" + "notAuthenticated"
                     value = force_bytes(notAuthMessage)
-                    backend = default_backend()
-                    encryptor = Cipher(algorithms.AES(self.session.session_info.session_key), modes.ECB(), backend).encryptor()
-                    padder = padding2.PKCS7(algorithms.AES(self.session.session_info.session_key).block_size).padder()
-                    padded_data = padder.update(value) + padder.finalize()
-                    encrypted_text = encryptor.update(padded_data) + encryptor.finalize()
-                    await self.mqtt_publish(self.session.client_id, data = encode_data_with_length(encrypted_text), qos=1, retain= False )
+                    
+                    await self.mqtt_publish(self.session.client_id, data = encode_data_with_length(value), qos=1, retain= False )
+                    await self.handle_connection_closed()
                    
 
-                    await self.handle_connection_closed()
 
+             
+                    
                
 
             elif (self.session.session_info.key_establishment_state == 8):
@@ -789,6 +787,7 @@ class BrokerProtocolHandler(ProtocolHandler):
                 self.logger.info("CLIENT: %s, DECRYPTED DATA OF STEP 9 OF DH :  %s", self.session.client_id, unpadded)              
                 index1 = unpadded.index(b'::::')
                 sent_nonce2 = unpadded[0:index1]
+             
                 nonce3_clientID = unpadded[index1+4:]
                 index2 = nonce3_clientID.index(b'::::')
                 coming_nonce3 = nonce3_clientID[0:index2]

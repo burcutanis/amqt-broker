@@ -748,6 +748,7 @@ class Broker:
                             client_session.session_info.subscribed_topics[topic_name_str] = "1"
 
                             message_str = force_str(topicName) + str(subscription[1]) + str(subscriptions["packet_id"])
+                            #message_str = force_str(topicName) + str(subscription[1])   #FOR ERROR CASES
                             message_byte = force_bytes(message_str)
                             self.logger.info("message_byte: 767: %s",message_byte )
                             self.logger.info("message_str: 767: %s",message_str )
@@ -781,8 +782,7 @@ class Broker:
                                         subscription, client_session
                                         )
                             else: 
-                               
-                                self.logger.info("CLIENT: %s, MAC OF THE SUBSCRIBED TOPIC IS NOT SAME", client_session.client_id,)
+                                self.logger.info("CLIENT: %s, 785 MAC OF THE SUBSCRIBED TOPIC IS NOT SAME", client_session.client_id,)
                         else: 
                              result = await self.add_subscription(
                             subscription, client_session
@@ -1311,7 +1311,7 @@ class Broker:
                     )
 
                 #modification
-                ####################################################3burası bir client publish ettiğinde çağrılıyor
+                ####################################################3burası bir clientın publish mesajı relay edildiğinde çağrılıyor
                 source_session=broadcast["session"]
                 self.logger.debug("------1204 source_session.client_id = %s", source_session.client_id)
                 self.logger.debug("------1205 source_session.session_info.authenticated = %s", source_session.session_info.authenticated)
