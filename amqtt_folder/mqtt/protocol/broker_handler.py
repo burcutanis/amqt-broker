@@ -358,19 +358,18 @@ class BrokerProtocolHandler(ProtocolHandler):
         self.logger.info(topicName_str)
         rows = getStatementFromChoiceTokens(topicName_str)
         self.logger.info("CLIENT: %s, topicname_str: %s ", self.session.client_id, topicName_str )
-        self.logger.info("357")
+      
         if (rows == None or len(rows) == 0 or rows == []): 
             choiceToken = secrets.token_hex() #256 bitlik bir token oluşturuyor
             pushRowToChoiceTokenTable(choiceToken, topicName_str)
             rows = getStatementFromChoiceTokens(topicName_str)
-            self.logger.info("362")
+          
         else:
             self.logger.debug("got token from database")
-            self.logger.info("365")
-
+           
        
         if (rows == None or len(rows) == 0 or rows == []):   # 11may2023
-                self.logger.info("369 xxxxxxxxxxxxxxxx")     # 11may2023
+                self.logger.debug("369 xxxxxxxxxxxxxxxx")     # 11may2023
         else:                                                # 11may2023
             tupleobj = rows[0]
             topic = tupleobj[0]
@@ -384,7 +383,7 @@ class BrokerProtocolHandler(ProtocolHandler):
             topicName_byte = force_bytes(topicName_str)
 
             #append topics and choideToken bytes for payload
-            payload_send += topicName_byte + b'::::' + choiceByte + b'::::'
+            payload_send += b'wildcardChoiceToken'+ b'::::' + topicName_byte + b'::::' + choiceByte + b'::::'
 
             message_str = self.session.session_info.client_id
             message = bytes(message_str, 'utf-8')
