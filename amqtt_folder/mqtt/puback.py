@@ -32,7 +32,8 @@ class PubackPayload(MQTTPayload):
     ):
         out = b""
 
-        self.logger.info("Signature of suback packet padded to payload with the return codes: %s", self.mac)
+        self.logger.info("Signature of puback packet: %s", self.mac)
+        self.logger.info("###PUBACK WAS SENT###")
 
         if self.mac != None:
             out += b"::::" + self.mac 
@@ -77,16 +78,16 @@ class PubackPacket(MQTTPacket):
         if client_unique_session_key != None:
             byte_packet_id = bytes(str(packet_id), 'utf-8')
             to_be_signed =  byte_packet_id 
-            print("*******************puback******************************", to_be_signed)
+            #print("*******************puback******************************", to_be_signed)
 
 
             h = hmac.HMAC(client_unique_session_key, hashes.SHA256())
             h.update(to_be_signed)
             mac = h.finalize()
             
-            print("************************puback*************************", mac)
+            #print("************************puback*************************", mac)
             payload_v = PubackPayload(mac_received=mac)
-            print("************************puback*************************", payload_v)
+            #print("************************puback*************************", payload_v)
             packet = PubackPacket(variable_header=v_header, payload=payload_v)
             #packet = PubackPacket(variable_header=v_header)
         else: 

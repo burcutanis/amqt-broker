@@ -701,8 +701,8 @@ class Broker:
                     )
                     unsubscription = unsubscribe_waiter.result()
                     for topic in unsubscription["topics"]:
-
-                        self.logger.info("WILL DELETE SUBSCRIPTON OF %s IN TOPIC %s", client_session, topic)
+                        self.logger.info("CLIENT: %s, DELETE SUBSRCIPTION FOR TOPIC %s", client_session.client_id, topic)
+                        #self.logger.info("WILL DELETE SUBSCRIPTON OF %s IN TOPIC %s", client_session, topic)
                         self._del_subscription(topic, client_session)
                         await self.plugins_manager.fire_event(
                             EVENT_BROKER_CLIENT_UNSUBSCRIBED,
@@ -724,7 +724,7 @@ class Broker:
                         "Client ID: %s handling subscription" % client_session.client_id
                     )
                     subscriptions = subscribe_waiter.result()
-                    self.logger.info("subscriptions.packet_id: %s",subscriptions["packet_id"])
+                    #self.logger.info("subscriptions.packet_id: %s",subscriptions["packet_id"])
                     return_codes = []
                     for subscription in subscriptions["topics"]:
 
@@ -743,15 +743,15 @@ class Broker:
                             index1 = unpadded.index(b'::::')
                             topicName = unpadded[0:index1]
                             mac_of_topicName = unpadded[index1+4:]
-                            self.logger.info("subscription qps: %s",subscription[1])
+                            #self.logger.info("subscription qps: %s",subscription[1])
                             topic_name_str = force_str(topicName)
                             client_session.session_info.subscribed_topics[topic_name_str] = "1"
 
                             message_str = force_str(topicName) + str(subscription[1]) + str(subscriptions["packet_id"])
                             #message_str = force_str(topicName) + str(subscription[1])   #FOR ERROR CASES
                             message_byte = force_bytes(message_str)
-                            self.logger.info("message_byte: 767: %s",message_byte )
-                            self.logger.info("message_str: 767: %s",message_str )
+                            #self.logger.info("message_byte: 767: %s",message_byte )
+                            #self.logger.info("message_str: 767: %s",message_str )
                                 
                             h = hmac.HMAC(client_session.session_info.session_key, hashes.SHA256())
                             h.update(message_byte)
@@ -1365,32 +1365,32 @@ class Broker:
                     #self.logger.debug("1225")
                     self.logger.info("CLIENT: %s, AUTHENTICATED ENCRYPTION VERSION OF THE TOPIC TO BE SEND %s", target_session.client_id,  encrypted_topic_hex)
 
-                    self.logger.info("1347")
+                  
 
 
                     payload = broadcast["data"]
                     retainFlag = False
-                    self.logger.info("1352")
+                    
                     msgid = target_session.next_packet_id
-                    self.logger.info("1354")
+                   
                     msgid_str = str(msgid)
                     message_hash_str = str(qos) + str(retainFlag) + msgid_str
                     hash_bytes = payload + force_bytes(message_hash_str)
-                    self.logger.info("message_hash_str %s", message_hash_str)
-                    self.logger.info("hash_bytes %s", hash_bytes)
-                    self.logger.info("1358")
+                    #self.logger.info("message_hash_str %s", message_hash_str)
+                    #self.logger.info("hash_bytes %s", hash_bytes)
+                   
 
                     
                     #self.logger.debug("1196 payload type")
-                    self.logger.info("1196 payload type: %s", type(broadcast["data"]))
-                    self.logger.info("1196 payload: %s", broadcast["data"])
+                    #self.logger.info("1196 payload type: %s", type(broadcast["data"]))
+                    #self.logger.info("1196 payload: %s", broadcast["data"])
 
                     h = hmac.HMAC(handler.session.session_info.session_key, hashes.SHA256())
                     h.update(hash_bytes)
                     signature = h.finalize()
 
                     payload_and_sign = payload + b'::::' + signature
-                    self.logger.info("1196 payload_and_sign: %s", payload_and_sign)
+                    #self.logger.info("1196 payload_and_sign: %s", payload_and_sign)
                     #self.logger.debug("1241")
 
 
@@ -1417,7 +1417,8 @@ class Broker:
                             
                         ),
                     )
-                    self.logger.debug("1260")
+                    self.logger.info("CLIENT: %s, PUBLISH MESSAGE IS SENT", handler.session.session_info.client_id)
+    
                     running_tasks.append(task) 
                 elif (target_session.session_info.authenticated != True and source_session.session_info.authenticated != True):
                     self.logger.debug("1264 - both source session & destination session are not authenticated")

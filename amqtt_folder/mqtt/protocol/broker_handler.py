@@ -218,11 +218,11 @@ class BrokerProtocolHandler(ProtocolHandler):
 
             #splitting for subscription requests of multiple topics in one message
             topics_list = payload_topics.split(b'::::')
-            self.logger.info("topics_list: %s", topics_list)
+            #self.logger.info("topics_list: %s", topics_list)
             #self.logger.info("CLIENT: %s, DECRYPTED DATA FROM CLIENT TO REQUEST CHOICE TOKEN %s" , self.session.client_id, topics_list)
 
             messagex = bytes.decode(payload_topics, 'utf-8') + self.session.client_id + str(quality) + str(retain) + str(mid)
-            self.logger.info("messagex: %s" , messagex )
+            #self.logger.info("messagex: %s" , messagex )
 
             message_byte = force_bytes(messagex)
 
@@ -303,7 +303,7 @@ class BrokerProtocolHandler(ProtocolHandler):
                 retainFlag = False
                 message_str = str(qos) + str(retainFlag)
                 message_bytes = payload_send_without_last_divider  + force_bytes(message_str)+ force_bytes(msgid_str)
-                self.logger.info("message_bytes: %s ", message_bytes)
+                #self.logger.info("message_bytes: %s ", message_bytes)
 
 
                 h = hmac.HMAC(self.session.session_info.session_key, hashes.SHA256())
@@ -446,8 +446,8 @@ class BrokerProtocolHandler(ProtocolHandler):
 
     async def sendChoiceTokenWildDB(self, topicName_wild):
       
-        self.logger.info("----FUNCTION: send_choice_token_wildDB %s topicname %s ----" , self.session.client_id,topicName_wild)
-        self.logger.info("----FUNCTION: PREPARATION OF PUBLISH MESSAGE FOR CLIENT %s FOR CHOICE TOKEN ----" , self.session.client_id)              
+        self.logger.info("----FUNCTION: send_choice_token_wildDB topicname %s ----" , topicName_wild)
+        self.logger.info("CLIENT: %s, PREPARATION OF PUBLISH MESSAGE FOR CHOICE TOKEN " , self.session.client_id)              
         payload_send = b''
         #2may2023
                    
@@ -468,12 +468,12 @@ class BrokerProtocolHandler(ProtocolHandler):
             topicName_exact = topicName_wild_str[0:index-1]
       
         
-        self.logger.info("346")
+       
         
         rows = getStatementFromWildChoiceTokens(topicName_without_wild)
-        self.logger.info("CLIENT: %s, topicname_str: %s ", self.session.client_id, topicName_wild_str )
-        self.logger.info("CLIENT: %s, topicname_str without wild: %s ", self.session.client_id, topicName_without_wild )
-        self.logger.info("349")
+        #self.logger.info("CLIENT: %s, topicname_str: %s ", self.session.client_id, topicName_wild_str )
+        #self.logger.info("CLIENT: %s, topicname_str without wild: %s ", self.session.client_id, topicName_without_wild )
+       
         if (rows == None or len(rows) == 0 or rows == []): 
             self.logger.debug("there is no choice token")
         else:
@@ -506,7 +506,7 @@ class BrokerProtocolHandler(ProtocolHandler):
             
             message_str = self.session.session_info.client_id
             message = bytes(message_str, 'utf-8')
-            self.logger.info("----FUNCTION: PREPARATION OF PUBLISH MESSAGE FOR CLIENT %s FOR REQUESTED CHOICE TOKEN (step 4 of choice token scheme)----" , self.session.client_id)
+            #self.logger.info("----FUNCTION: PREPARATION OF PUBLISH MESSAGE FOR CLIENT %s FOR REQUESTED CHOICE TOKEN (step 4 of choice token scheme)----" , self.session.client_id)
             
             h = hmac.HMAC(self.session.session_info.session_key, hashes.SHA256())
             h.update(message)
@@ -527,7 +527,7 @@ class BrokerProtocolHandler(ProtocolHandler):
             retainFlag = False
             message_str = str(qos) + str(retainFlag)
             message_bytes = payload_send  + force_bytes(message_str)+ force_bytes(msgid_str)
-            self.logger.info("message_bytes: %s ", message_bytes)
+            #self.logger.info("message_bytes: %s ", message_bytes)
 
             h = hmac.HMAC(self.session.session_info.session_key, hashes.SHA256())
             h.update(message_bytes)
@@ -543,8 +543,9 @@ class BrokerProtocolHandler(ProtocolHandler):
             self.logger.debug(payloadByte)
                     
             self.logger.debug("alldatabeforepublish:%s", payloadByte)
-            self.logger.info("CLIENT: %s, ENCRYPTED TOPIC NAME: %s ", self.session.client_id, topicNameEncryptedHex )
-            self.logger.info("CLIENT: %s, ENCRYPTED PAYLOAD SEND FOR CHOICE TOKEN: %s ", self.session.client_id, payloadByte  )
+            self.logger.info("CLIENT: %s, PLAIN VERSION OF TOPIC NAME: %s ", self.session.client_id, self.session.client_id )
+            self.logger.info("CLIENT: %s, AUTHENTICATED ENCRYPTION VERSION OF TOPIC NAME: %s ", self.session.client_id, topicNameEncryptedHex )
+            self.logger.info("CLIENT: %s, AUTHENTICATED ENCRYPTION VERSION OF PAYLOAD SEND FOR CHOICE TOKEN: %s ", self.session.client_id, payloadByte  )
                 
                 
             await self.mqtt_publish(topicNameEncryptedHex, data = encode_data_with_length(payloadByte), qos=1, retain= False, msgid=msgid )
@@ -851,10 +852,11 @@ class BrokerProtocolHandler(ProtocolHandler):
     async def handle_unsubscribe(self, unsubscribe: UnsubscribePacket):
 
 
-        self.logger.info("WILL HANDLE UNSUBSCRIBE NOW")
+        self.logger.info("####UNSUBSCRIBE PACKET RECEIVED FROM CLIENT: %s", self.session.client_id)
 
         #assuming topic names
         topics_list = unsubscribe.payload.topics
+        self.logger.info("CLIENT: %s, AUTHENTICATED ENCRYPTION VERSION OF THE UNSUBSCRIBE PACKET: %s", self.session.client_id, topics_list)
 
         topics_decoded_list = []
 
@@ -862,7 +864,7 @@ class BrokerProtocolHandler(ProtocolHandler):
             continue_decrypt = True
             for topic_mac_encrypted_hex in topics_list:
                 if continue_decrypt:
-
+                    self.logger.info("CLIENT: %s, AUTHENTICATED ENCRYPTION VERSION OF ONE TOPIC: %s", self.session.client_id, topic_mac_encrypted_hex)
                     topicn_mac_enc_byte = unhexlify(topic_mac_encrypted_hex)
                     backend = default_backend()
                     decryptor = Cipher(algorithms.AES(self.session.session_info.session_key), modes.ECB(), backend).decryptor()
@@ -873,14 +875,17 @@ class BrokerProtocolHandler(ProtocolHandler):
                     index1 = unpadded.index(b'::::')
                     topic_name = unpadded[0:index1]
                     mac_unchecked = unpadded[index1+4:]
+                    self.logger.info("CLIENT: %s, DECRYPTED VERSION OF ONE TOPIC: %s", self.session.client_id, topic_name)
 
                     qos = str(1)
 
                     topic_concat_qos = topic_name + b'::::' + bytes(qos, 'utf-8')
+                    self.logger.info("CLIENT: %s, RECEIVED MAC: %s", self.session.client_id, mac_unchecked)
 
                     h = hmac.HMAC(self.session.session_info.session_key, hashes.SHA256())
                     h.update(topic_concat_qos)
                     mac_duplicate_to_check = h.finalize()
+                    self.logger.info("CLIENT: %s, CALCULATED MAC: %s", self.session.client_id, mac_duplicate_to_check)
                     
                     if (mac_duplicate_to_check == mac_unchecked):
                         self.logger.debug("MAC of this topic is same")

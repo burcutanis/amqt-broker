@@ -46,7 +46,8 @@ class SubackPayload(MQTTPayload):
 
         #bilgesu:modification adding mac to the payload
 
-        self.logger.info("Signature of suback packet padded to payload with the return codes: %s", self.mac)
+        self.logger.info("Signature of the suback packet: %s", self.mac)
+        self.logger.info("###SUBACK WAS SENT###")
 
         if self.mac != None:
             out += b"::::" + self.mac 
@@ -129,13 +130,13 @@ class SubackPacket(MQTTPacket):
             #DISTORTED ON PURPOSE:
             #to_be_signed = b'randomBytes' + b'::::' + return_codes_appended_byte
 
-            print("*************************************************", to_be_signed)
+            #print("*************************************************", to_be_signed)
 
 
             h = hmac.HMAC(client_unique_session_key, hashes.SHA256())
             h.update(to_be_signed)
             mac = h.finalize()
-            print("*************************************************", mac)
+            #print("*************************************************", mac)
             payload = SubackPayload(mac_received=mac, return_codes=return_codes)
 
         
