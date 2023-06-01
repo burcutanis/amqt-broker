@@ -914,6 +914,7 @@ class Broker:
                                         padder = padding2.PKCS7(algorithms.AES(client_session.session_info.session_key).block_size).unpadder()
                                         decrypted_data = decryptor.update(app_message.data) 
                                         unpadded = padder.update(decrypted_data) + padder.finalize()
+                                        self.logger.info("CLIENT: %s, UNPADDED: %s ", client_session.client_id, unpadded  )
 
                                         index2 = unpadded.index(b'::::')
                                         payload = unpadded[0:index2]

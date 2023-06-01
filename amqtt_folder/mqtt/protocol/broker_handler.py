@@ -183,6 +183,7 @@ class BrokerProtocolHandler(ProtocolHandler):
         unpadded = padder.update(decrypted_data) + padder.finalize()
         index1 = unpadded.index(b'::::')
         topicname = unpadded[0:index1]
+        #topicname2 = unpadded[0:]  #for error cases
         macCode = unpadded[index1+4:]
 
        
@@ -222,6 +223,7 @@ class BrokerProtocolHandler(ProtocolHandler):
             #self.logger.info("CLIENT: %s, DECRYPTED DATA FROM CLIENT TO REQUEST CHOICE TOKEN %s" , self.session.client_id, topics_list)
 
             messagex = bytes.decode(payload_topics, 'utf-8') + self.session.client_id + str(quality) + str(retain) + str(mid)
+            #messagey = bytes.decode(payload_topics, 'utf-8') + self.session.client_id + str(quality) + str(retain)  #for error cases
             #self.logger.info("messagex: %s" , messagex )
 
             message_byte = force_bytes(messagex)
@@ -674,7 +676,7 @@ class BrokerProtocolHandler(ProtocolHandler):
 
                 index3 = nonce_rsa_sign.index(b'::::')
                 nonce = nonce_rsa_sign[0:index3]
-                #nonce = nonce_rsa_sign[0:]   #FOR ERROR CASE NONCE1 CANNOT VERIFIED FOR THE COMMING MESSAGE FROM DH STEP 6
+                #nonce_error = nonce_rsa_sign[0:]   #FOR ERROR CASE NONCE1 CANNOT VERIFIED FOR THE COMMING MESSAGE FROM DH STEP 6
                 client_rsa_sign = nonce_rsa_sign[index3+4:]
 
                 dh1 = self.session.session_info.dh
@@ -742,16 +744,10 @@ class BrokerProtocolHandler(ProtocolHandler):
                         self.logger.info("CLIENT: %s, Nonces are not matching, client not authenticated, key establishment will stop.", self.session.client_id)
                         self.session.session_info.disconnect_flag = True
 
-                        notAuthMessage = self.session.session_info.client_id + "::::" + "notAuthenticated"
+                        notAuthMessage = self.session.session_info.client_id +  "::::" + "notAuthenticated"
                         value = force_bytes(notAuthMessage)
-                        backend = default_backend()
-                        encryptor = Cipher(algorithms.AES(self.session.session_info.session_key), modes.ECB(), backend).encryptor()
-                        padder = padding2.PKCS7(algorithms.AES(self.session.session_info.session_key).block_size).padder()
-                        padded_data = padder.update(value) + padder.finalize()
-                        encrypted_text = encryptor.update(padded_data) + encryptor.finalize()
-                        await self.mqtt_publish(self.session.client_id, data = encode_data_with_length(encrypted_text), qos=1, retain= False )
                     
-
+                        await self.mqtt_publish(self.session.client_id, data = encode_data_with_length(value), qos=1, retain= False )
                         await self.handle_connection_closed()
                      
                    
@@ -879,6 +875,7 @@ class BrokerProtocolHandler(ProtocolHandler):
                     qos = str(1)
 
                     topic_concat_qos = topic_name + b'::::' + bytes(qos, 'utf-8')
+                    #topic_concat_qos = topic_name + b'::::'   #for error cases
                     self.logger.info("CLIENT: %s, RECEIVED MAC: %s", self.session.client_id, mac_unchecked)
 
                     h = hmac.HMAC(self.session.session_info.session_key, hashes.SHA256())
