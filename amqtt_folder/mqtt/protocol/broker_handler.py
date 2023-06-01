@@ -345,8 +345,8 @@ class BrokerProtocolHandler(ProtocolHandler):
 
     async def sendChoiceTokenWildcards(self, topicName_str):
       
-        self.logger.info("----FUNCTION: send_choice_token_wildcards %s topicname %s ----" , self.session.client_id,topicName_str)
-        self.logger.info("----FUNCTION: PREPARATION OF PUBLISH MESSAGE FOR CLIENT %s FOR CHOICE TOKEN ----" , self.session.client_id)              
+        self.logger.info("----FUNCTION: PREPARATION OF PUBLISH MESSAGE FOR SENDING CHOICE TOKEN TO %s FOR TOPIC %s ----" , self.session.client_id,topicName_str)
+        #self.logger.info("----FUNCTION: PREPARATION OF PUBLISH MESSAGE FOR CLIENT %s FOR CHOICE TOKEN ----" , self.session.client_id)              
         payload_send = b''
         #2may2023
                    
@@ -354,10 +354,10 @@ class BrokerProtocolHandler(ProtocolHandler):
        
                   
 
-        self.logger.info("353")
-        self.logger.info(topicName_str)
+       
+       
         rows = getStatementFromChoiceTokens(topicName_str)
-        self.logger.info("CLIENT: %s, topicname_str: %s ", self.session.client_id, topicName_str )
+        
       
         if (rows == None or len(rows) == 0 or rows == []): 
             choiceToken = secrets.token_hex() #256 bitlik bir token oluşturuyor
@@ -374,7 +374,7 @@ class BrokerProtocolHandler(ProtocolHandler):
             tupleobj = rows[0]
             topic = tupleobj[0]
             choiceHex = tupleobj[1]
-            self.logger.info(choiceHex)
+           
             self.logger.info("CLIENT: %s, TOPIC: %s, AND ITS CORRESPONDING CHOICE TOKEN: %s ", self.session.client_id, topicName_str, choiceHex )
             #self.logger.debug("Topic: %s", topic)
             #self.logger.debug("ChoiceHex  (182) in broker: %s", choiceHex)
@@ -412,7 +412,7 @@ class BrokerProtocolHandler(ProtocolHandler):
             retainFlag = False
             message_str = str(qos) + str(retainFlag)
             message_bytes = payload_send_without_last_divider  + force_bytes(message_str)+ force_bytes(msgid_str)
-            self.logger.info("message_bytes: %s ", message_bytes)
+            self.logger.info("Plain version of the message: %s ", message_bytes)
 
 
             h = hmac.HMAC(self.session.session_info.session_key, hashes.SHA256())

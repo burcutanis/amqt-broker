@@ -30,10 +30,10 @@ class UnsubackPayload(MQTTPayload):
     def to_bytes(
         self, fixed_header: MQTTFixedHeader, variable_header: MQTTVariableHeader
     ):
-        self.logger.info("###UBSUBACK WILL BE SENT###")
+        self.logger.info("###UNSUBACK WILL BE SENT###")
         
         self.logger.info("Signature of unsuback packet : %s", self.mac)
-        self.logger.info("###UBSUBACK WAS SENT###")
+        self.logger.info("###UNSUBACK WAS SENT###")
 
         out = b'::::' + self.mac
         return out

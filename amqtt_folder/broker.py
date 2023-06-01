@@ -902,7 +902,7 @@ class Broker:
                                     
                                     if (topicName == b'choiceToken'):#asks for a choice token here 
                                  
-                                        self.logger.info("quality %s:", quality)
+                                        #self.logger.info("quality %s:", quality)
                                         await (handler.sendChoiceToken(app_message.topic, app_message.data, quality, retain, mid))
 
                                     else:
@@ -953,7 +953,7 @@ class Broker:
                                             '''
 
                                         else: 
-                                            self.logger.info("broker.py, 953: CLIENT: %s, MAC OF PAYLOAD IS  NOT SAME", client_session.client_id )
+                                            self.logger.info("CLIENT: %s, MAC OF PAYLOAD IS  NOT SAME", client_session.client_id )
                                             self.logger.info("CLIENT: %s, DECRYPTED VERSION OF THE PUBLISHED TOPIC: %s ", client_session.client_id, topicName  )
 
                                             #bilgesu: modification
@@ -962,7 +962,7 @@ class Broker:
                                             #bilgesu: modification
 
                                 else: 
-                                    self.logger.debug("broker.py, 967: CLIENT: %s, MAC OF TOPIC NAME IS NOT SAME", client_session.client_id )
+                                    self.logger.debug("CLIENT: %s, MAC OF TOPIC NAME IS NOT SAME", client_session.client_id )
                                     self.logger.info("CLIENT: %s, DECRYPTED VERSION OF THE PUBLISHED TOPIC: %s ", client_session.client_id, topicName  ) 
 
                                     #bilgesu: modification
